@@ -113,6 +113,10 @@
       width:54px;height:54px;border-radius:18px;display:grid;place-items:center;
       background:var(--gold);color:#132017;font-size:27px;flex:0 0 auto
     }
+    .home-concierge-btn{
+      width:100%;text-align:left;color:inherit;cursor:pointer
+    }
+    .home-concierge-btn:active{transform:scale(.992)}
     .concierge h3{font-size:20px;margin:0 0 5px}
     .concierge p{font-size:15px;color:var(--muted);line-height:1.45;margin:0}
     .weather{
@@ -590,13 +594,13 @@
       </section>
 
       <section class="section">
-        <div class="concierge">
+        <button class="concierge home-concierge-btn" id="homeConciergeBtn" type="button">
           <div class="concierge-icon">✦</div>
           <div>
             <h3>Gavin Concierge</h3>
             <p>予定変更や近くのお店探しを、いつでも相談できます。</p>
           </div>
-        </div>
+        </button>
       </section>
 
       <section class="section">
@@ -1167,6 +1171,14 @@
       }[char]));
     }
 
+    function renderConciergeLabel(day){
+      const meta = dayMeta[day];
+      const label = document.getElementById('conciergeDayLabel');
+      if(meta && label){
+        label.textContent = `${meta.short}の旅程を参照して回答します。`;
+      }
+    }
+
     function renderItinerary(day) {
       const data = itineraryData[day];
       currentSelectedDay = day;
@@ -1288,22 +1300,6 @@
     });
 
     // Full-day Google Maps route
-    document.getElementById('openDayRoute')?.addEventListener('click', () => {
-      const events = itineraryData[currentSelectedDay]?.events || [];
-      const destinations = events.filter(event => event.map).slice(0,10);
-      if(!destinations.length) return;
-      if(destinations.length === 1){
-        window.open(destinations[0].map,'_blank','noopener');
-        return;
-      }
-      const names = destinations.map(event => event.name);
-      const origin = encodeURIComponent(names[0]);
-      const destination = encodeURIComponent(names[names.length - 1]);
-      const waypoints = names.slice(1,-1).map(encodeURIComponent).join('|');
-      let url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}`;
-      if(waypoints) url += `&waypoints=${waypoints}`;
-      window.open(url,'_blank','noopener');
-    });
 
     // Share/copy selected day
     function selectedDayText(){
@@ -1517,7 +1513,7 @@
     document.getElementById('exportDataBtn')?.addEventListener('click', () => {
       const payload = {
         app:'Gavin Travel',
-        version:'2.0.4',
+        version:'2.0.6',
         exportedAt:new Date().toISOString(),
         selectedDay:currentSelectedDay,
         favorites:[...favoriteFoods],
@@ -1560,42 +1556,49 @@
     renderConciergeLabel(currentSelectedDay);
     renderGourmetCards();
 
-  
 
-document.getElementById('openDayRoute')?.addEventListener('click', () => {
-  const events = (itineraryData[currentSelectedDay]?.events) || [];
 
-  const destinations = events
-    .filter(event => ['food', 'spot', 'hotel'].includes(event.type))
-    .map(event => event.name)
-    .filter(Boolean);
+    document.getElementById('openDayRoute')?.addEventListener('click', () => {
+      const events = itineraryData[currentSelectedDay]?.events || [];
 
-  if (!destinations.length) {
-    alert('目的地がありません');
-    return;
-  }
+      const destinations = events
+        .filter(event => ['food','spot','hotel'].includes(event.type))
+        .map(event => event.name)
+        .filter(Boolean);
 
-  if (destinations.length === 1) {
-    const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destinations[0])}`;
-    window.open(url, '_blank', 'noopener');
-    return;
-  }
+      if(!destinations.length){
+        alert('この日に地図へ表示できる目的地がありません。');
+        return;
+      }
 
-  const origin = encodeURIComponent(destinations[0]);
-  const destination = encodeURIComponent(destinations[destinations.length - 1]);
-  const waypoints = destinations
-    .slice(1, -1)
-    .map(name => encodeURIComponent(name))
-    .join('|');
+      if(destinations.length === 1){
+        const singleUrl =
+          `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destinations[0])}`;
+        window.location.href = singleUrl;
+        return;
+      }
 
-  let url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}`;
-  if (waypoints) {
-    url += `&waypoints=${waypoints}`;
-  }
+      const origin = encodeURIComponent(destinations[0]);
+      const destination = encodeURIComponent(destinations[destinations.length - 1]);
+      const waypoints = destinations.slice(1, -1).map(encodeURIComponent).join('|');
 
-  window.open(url, '_blank', 'noopener');
-});
+      let routeUrl =
+        `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&travelmode=transit`;
 
+      if(waypoints){
+        routeUrl += `&waypoints=${waypoints}`;
+      }
+
+      window.location.href = routeUrl;
+    });
+
+    document.getElementById('homeConciergeBtn')?.addEventListener('click', () => {
+      const conciergeTab = document.querySelector('.tab[data-screen="concierge"]');
+      conciergeTab?.click();
+      requestAnimationFrame(() => {
+        document.getElementById('chatInput')?.focus();
+      });
+    });
 
 </script>
 </body>
