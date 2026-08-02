@@ -353,6 +353,20 @@
     }
 
 
+
+    .food-region-title{
+      margin:22px 2px 10px;font-size:20px;color:var(--gold);font-weight:900
+    }
+    .food-card.compact .food-photo{height:145px}
+    .food-card.compact .food-body h3{font-size:23px}
+    .food-card.compact .food-sub{margin-bottom:10px}
+    .food-card.compact .tag-row{margin-bottom:12px}
+    .source-note{
+      margin-top:18px;padding:14px 15px;border-radius:16px;
+      background:rgba(241,195,108,.09);color:var(--muted);
+      border:1px solid rgba(241,195,108,.18);font-size:13px;line-height:1.55
+    }
+
     /* v1.5 functional additions */
     .online-state{
       display:inline-flex;align-items:center;gap:7px;
@@ -601,160 +615,9 @@
         <button class="filter-btn" data-filter="favorites">★ お気に入り</button>
       </div>
 
-      <div class="food-list" id="foodList">
-        <article class="food-card" data-region="台北" data-search="T112 杭州小籠湯包 小籠包 蒸餃 台北">
-          <div class="food-photo" style="background-image:url('https://images.unsplash.com/photo-1563245372-f21724e3856d?auto=format&fit=crop&w=1000&q=84')">
-            <span class="food-number">T112</span>
-            <span class="food-rating">★★★★★</span>
-          </div>
-          <div class="food-body">
-            <h3>杭州小籠湯包</h3>
-            <div class="food-sub">台北・小籠包／蒸餃</div>
-            <div class="tag-row"><span class="food-tag">小籠包</span><span class="food-tag">旅程 8/7</span></div>
-            <div class="food-actions">
-              <a class="small-btn primary" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=%E6%9D%AD%E5%B7%9E%E5%B0%8F%E7%B1%A0%E6%B9%AF%E5%8C%85%20%E5%8F%B0%E5%8C%97">Googleマップ</a>
-              <button class="small-btn detail-btn"
-                data-number="T112"
-                data-name="杭州小籠湯包"
-                data-region="台北"
-                data-menu="小籠湯包|蝦仁燒賣|酸辣湯"
-                data-note="小籠包を中心に楽しめる台北の人気店。8月7日の昼食予定です。"
-                data-map="https://www.google.com/maps/search/?api=1&query=%E6%9D%AD%E5%B7%9E%E5%B0%8F%E7%B1%A0%E6%B9%AF%E5%8C%85%20%E5%8F%B0%E5%8C%97">詳細</button>
-            </div>
-          </div>
-        </article>
-
-        <article class="food-card" data-region="台北" data-search="T120 劉山東牛肉麵 牛肉麺 台北">
-          <div class="food-photo" style="background-image:url('https://images.unsplash.com/photo-1555126634-323283e090fa?auto=format&fit=crop&w=1000&q=84')">
-            <span class="food-number">T120</span>
-            <span class="food-rating">★★★★★</span>
-          </div>
-          <div class="food-body">
-            <h3>劉山東牛肉麵</h3>
-            <div class="food-sub">台北・牛肉麺</div>
-            <div class="tag-row"><span class="food-tag">牛肉麺</span><span class="food-tag">旅程 8/7</span></div>
-            <div class="food-actions">
-              <a class="small-btn primary" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=%E5%8A%89%E5%B1%B1%E6%9D%B1%E7%89%9B%E8%82%89%E9%BA%B5%20%E5%8F%B0%E5%8C%97">Googleマップ</a>
-              <button class="small-btn detail-btn"
-                data-number="T120"
-                data-name="劉山東牛肉麵"
-                data-region="台北"
-                data-menu="紅燒牛肉麵|清燉牛肉麵|小菜"
-                data-note="台北駅周辺の老舗牛肉麺店。8月7日の午後に立ち寄る予定です。"
-                data-map="https://www.google.com/maps/search/?api=1&query=%E5%8A%89%E5%B1%B1%E6%9D%B1%E7%89%9B%E8%82%89%E9%BA%B5%20%E5%8F%B0%E5%8C%97">詳細</button>
-            </div>
-          </div>
-        </article>
-
-        <article class="food-card" data-region="台北" data-search="T125 雞家莊 三味雞 雞油飯 台湾料理 台北">
-          <div class="food-photo" style="background-image:url('https://images.unsplash.com/photo-1569058242253-92a9c755a0ec?auto=format&fit=crop&w=1000&q=84')">
-            <span class="food-number">T125</span>
-            <span class="food-rating">★★★★★</span>
-          </div>
-          <div class="food-body">
-            <h3>雞家莊</h3>
-            <div class="food-sub">台北・台湾料理／台菜</div>
-            <div class="tag-row"><span class="food-tag">三味雞</span><span class="food-tag">最終日候補</span></div>
-            <div class="food-actions">
-              <a class="small-btn primary" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=%E9%9B%9E%E5%AE%B6%E8%8E%8A%20%E9%95%B7%E6%98%A5%E8%B7%AF">Googleマップ</a>
-              <button class="small-btn detail-btn"
-                data-number="T125"
-                data-name="雞家莊"
-                data-region="台北"
-                data-menu="三味雞|雞油飯|雞卷|雞家豆腐|雞蛋布丁"
-                data-note="老舗の台湾料理店。旅行最終日の夕食候補として登録しています。"
-                data-map="https://www.google.com/maps/search/?api=1&query=%E9%9B%9E%E5%AE%B6%E8%8E%8A%20%E9%95%B7%E6%98%A5%E8%B7%AF">詳細</button>
-            </div>
-          </div>
-        </article>
-
-        <article class="food-card" data-region="台中" data-search="T206 沁園春 小籠包 江浙料理 台中">
-          <div class="food-photo" style="background-image:url('https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=1000&q=84')">
-            <span class="food-number">T206</span>
-            <span class="food-rating">★★★★★</span>
-          </div>
-          <div class="food-body">
-            <h3>沁園春</h3>
-            <div class="food-sub">台中・江浙料理</div>
-            <div class="tag-row"><span class="food-tag">予約済み</span><span class="food-tag">旅程 8/7</span></div>
-            <div class="food-actions">
-              <a class="small-btn primary" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=%E6%B2%81%E5%9C%92%E6%98%A5%20%E5%8F%B0%E4%B8%AD">Googleマップ</a>
-              <button class="small-btn detail-btn"
-                data-number="T206"
-                data-name="沁園春"
-                data-region="台中"
-                data-menu="小籠包|寧波排骨|炒飯"
-                data-note="8月7日19時に予約済み。台中到着日の夕食です。"
-                data-map="https://www.google.com/maps/search/?api=1&query=%E6%B2%81%E5%9C%92%E6%98%A5%20%E5%8F%B0%E4%B8%AD">詳細</button>
-            </div>
-          </div>
-        </article>
-
-        <article class="food-card" data-region="台中" data-search="T214 馨苑小料理 台湾料理 草悟道 台中">
-          <div class="food-photo" style="background-image:url('https://images.unsplash.com/photo-1515003197210-e0cd71810b5f?auto=format&fit=crop&w=1000&q=84')">
-            <span class="food-number">T214</span>
-            <span class="food-rating">★★★★★</span>
-          </div>
-          <div class="food-body">
-            <h3>馨苑小料理</h3>
-            <div class="food-sub">台中・台湾料理</div>
-            <div class="tag-row"><span class="food-tag">草悟道</span><span class="food-tag">旅程 8/9</span></div>
-            <div class="food-actions">
-              <a class="small-btn primary" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=%E9%A6%A8%E8%8B%91%E5%B0%8F%E6%96%99%E7%90%86%20%E5%8F%B0%E4%B8%AD">Googleマップ</a>
-              <button class="small-btn detail-btn"
-                data-number="T214"
-                data-name="馨苑小料理"
-                data-region="台中"
-                data-menu="台湾家庭料理|季節の小皿|ご飯料理"
-                data-note="草悟道エリアの昼食候補。8月9日の旅程に登録しています。"
-                data-map="https://www.google.com/maps/search/?api=1&query=%E9%A6%A8%E8%8B%91%E5%B0%8F%E6%96%99%E7%90%86%20%E5%8F%B0%E4%B8%AD">詳細</button>
-            </div>
-          </div>
-        </article>
-
-        <article class="food-card" data-region="宜蘭" data-search="T301 柯氏蔥油餅 礁溪 葱油餅 宜蘭">
-          <div class="food-photo" style="background-image:url('https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=1000&q=84')">
-            <span class="food-number">T301</span>
-            <span class="food-rating">★★★★★</span>
-          </div>
-          <div class="food-body">
-            <h3>柯氏蔥油餅（礁溪）</h3>
-            <div class="food-sub">宜蘭・蔥油餅</div>
-            <div class="tag-row"><span class="food-tag">礁溪</span><span class="food-tag">旅程 8/11</span></div>
-            <div class="food-actions">
-              <a class="small-btn primary" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=%E6%9F%AF%E6%B0%8F%E8%94%A5%E6%B2%B9%E9%A4%85%20%E7%A4%81%E6%BA%AA">Googleマップ</a>
-              <button class="small-btn detail-btn"
-                data-number="T301"
-                data-name="柯氏蔥油餅（礁溪）"
-                data-region="宜蘭"
-                data-menu="蔥油餅加蛋|辣醬"
-                data-note="礁溪で立ち寄る蔥油餅店。8月11日の朝に訪問予定です。"
-                data-map="https://www.google.com/maps/search/?api=1&query=%E6%9F%AF%E6%B0%8F%E8%94%A5%E6%B2%B9%E9%A4%85%20%E7%A4%81%E6%BA%AA">詳細</button>
-            </div>
-          </div>
-        </article>
-
-        <article class="food-card" data-region="彰化" data-search="T501 妍 烤物 彰化 焼き物 居酒屋">
-          <div class="food-photo" style="background-image:url('https://images.unsplash.com/photo-1529692236671-f1f6cf9683ba?auto=format&fit=crop&w=1000&q=84')">
-            <span class="food-number">T501</span>
-            <span class="food-rating">★★★★★</span>
-          </div>
-          <div class="food-body">
-            <h3>妍·烤物（彰化市）</h3>
-            <div class="food-sub">彰化・焼き物</div>
-            <div class="tag-row"><span class="food-tag">姉家族と夕食</span><span class="food-tag">旅程 8/8</span></div>
-            <div class="food-actions">
-              <a class="small-btn primary" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=%E5%A6%8D%20%E7%83%A4%E7%89%A9%20%E5%BD%B0%E5%8C%96">Googleマップ</a>
-              <button class="small-btn detail-btn"
-                data-number="T501"
-                data-name="妍·烤物（彰化市）"
-                data-region="彰化"
-                data-menu="焼き物|串焼き|一品料理"
-                data-note="8月8日の夜、姉家族と訪れる予定のお店です。"
-                data-map="https://www.google.com/maps/search/?api=1&query=%E5%A6%8D%20%E7%83%A4%E7%89%A9%20%E5%BD%B0%E5%8C%96">詳細</button>
-            </div>
-          </div>
-        </article>
+      <div class="food-list" id="foodList"></div>
+      <div class="source-note">
+        グルメ番号は、これまで確定した台湾2026グルメブックの登録内容を基準にしています。
       </div>
 
       <div class="empty-result" id="emptyResult">該当するお店がありません。</div>
@@ -900,72 +763,95 @@
     });
 
     const searchInput = document.getElementById('foodSearch');
-    const foodCards = [...document.querySelectorAll('.food-card')];
+    let foodCards = [];
     const filterButtons = [...document.querySelectorAll('.filter-btn')];
     const emptyResult = document.getElementById('emptyResult');
     let activeFilter = 'all';
 
-    function updateFoodList(){
-      const keyword = (searchInput?.value || '').trim().toLowerCase();
-      let visibleCount = 0;
 
-      foodCards.forEach(card => {
-        const foodId = card.querySelector('.food-number')?.textContent.trim() || card.dataset.search;
-        const regionMatch =
-          activeFilter === 'all' ||
-          card.dataset.region === activeFilter ||
-          (activeFilter === 'favorites' && favoriteFoods.has(foodId));
-        const keywordMatch = !keyword || card.dataset.search.toLowerCase().includes(keyword);
-        const visible = regionMatch && keywordMatch;
-        card.style.display = visible ? '' : 'none';
-        if(visible) visibleCount++;
-      });
-
-      document.getElementById('visibleFoodCount').textContent = visibleCount;
-      document.getElementById('favoriteFoodCount').textContent = favoriteFoods.size;
-      if(emptyResult) emptyResult.style.display = visibleCount ? 'none' : 'block';
+    function mapSearchUrl(name){
+      return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name + ' 台湾')}`;
     }
 
-    searchInput?.addEventListener('input', updateFoodList);
+    function selectedDayRestaurantNames(){
+      return new Set((itineraryData[currentSelectedDay]?.events || [])
+        .filter(event => event.type === 'food')
+        .map(event => event.name));
+    }
 
-    filterButtons.forEach(button => {
-      button.addEventListener('click', () => {
-        filterButtons.forEach(b => b.classList.remove('active'));
-        button.classList.add('active');
-        activeFilter = button.dataset.filter;
-        updateFoodList();
-      });
-    });
+    function renderGourmetCards(){
+      const list = document.getElementById('foodList');
+      const dayNames = selectedDayRestaurantNames();
+      const regionOrder = ['台北','台中','台南','宜蘭','彰化'];
 
-    const foodModal = document.getElementById('foodModal');
-    const modalNumber = document.getElementById('modalNumber');
-    const modalName = document.getElementById('modalName');
-    const modalRegion = document.getElementById('modalRegion');
-    const modalMenu = document.getElementById('modalMenu');
-    const modalNote = document.getElementById('modalNote');
-    const modalMap = document.getElementById('modalMap');
+      list.innerHTML = regionOrder.map(region => {
+        const rows = gourmetData.filter(item => item.region === region);
+        if(!rows.length) return '';
 
-    document.querySelectorAll('.detail-btn').forEach(button => {
-      button.addEventListener('click', () => {
-        modalNumber.textContent = button.dataset.number;
-        modalName.textContent = button.dataset.name;
-        modalRegion.textContent = button.dataset.region;
-        modalNote.textContent = button.dataset.note;
-        modalMap.href = button.dataset.map;
-        modalMenu.innerHTML = '';
-        button.dataset.menu.split('|').forEach(item => {
-          const div = document.createElement('div');
-          div.className = 'menu-item';
-          div.textContent = item;
-          modalMenu.appendChild(div);
+        const cards = rows.map(item => {
+          const photo = gourmetPhotos[item.category] || defaultGourmetPhoto;
+          const isToday = [...dayNames].some(name => name.includes(item.name.replace(/（.*?）/g,'')) || item.name.includes(name));
+          const tags = [...item.tags];
+          if(isToday && !tags.includes('選択日の旅程')) tags.unshift('選択日の旅程');
+          const map = mapSearchUrl(item.name);
+          return `
+            <article class="food-card compact"
+              data-region="${escapeHtml(item.region)}"
+              data-food-id="${escapeHtml(item.id)}"
+              data-search="${escapeHtml([item.id,item.name,item.category,item.region,...item.tags,...item.menu].join(' '))}">
+              <div class="food-photo" style="background-image:url('${escapeHtml(photo)}')">
+                <span class="food-number">${escapeHtml(item.id)}</span>
+                <span class="food-rating">★★★★★</span>
+                <button class="favorite-btn ${favoriteFoods.has(item.id) ? 'active' : ''}"
+                  type="button" aria-label="お気に入り" data-food-id="${escapeHtml(item.id)}">★</button>
+              </div>
+              <div class="food-body">
+                <h3>${escapeHtml(item.name)}</h3>
+                <div class="food-sub">${escapeHtml(item.region)}・${escapeHtml(item.category)}</div>
+                <div class="tag-row">
+                  ${tags.map(tag => `<span class="${tag === '選択日の旅程' ? 'today-badge' : 'food-tag'}">${escapeHtml(tag)}</span>`).join('')}
+                </div>
+                <div class="food-actions">
+                  <a class="small-btn primary" target="_blank" rel="noopener" href="${escapeHtml(map)}">Googleマップ</a>
+                  <button class="small-btn detail-btn"
+                    data-number="${escapeHtml(item.id)}"
+                    data-name="${escapeHtml(item.name)}"
+                    data-region="${escapeHtml(item.region)}"
+                    data-menu="${escapeHtml(item.menu.join('|'))}"
+                    data-note="${escapeHtml(item.category)}としてグルメブックに登録済み。"
+                    data-map="${escapeHtml(map)}">詳細</button>
+                </div>
+              </div>
+            </article>
+          `;
+        }).join('');
+
+        return `<div class="food-region-title">${region}</div>${cards}`;
+      }).join('');
+
+      foodCards = [...document.querySelectorAll('.food-card')];
+      bindGourmetCardActions();
+      updateFoodList();
+    }
+
+    function bindGourmetCardActions(){
+      document.querySelectorAll('.favorite-btn').forEach(button => {
+        button.addEventListener('click', event => {
+          event.stopPropagation();
+          const foodId = button.dataset.foodId;
+          if(favoriteFoods.has(foodId)){
+            favoriteFoods.delete(foodId);
+            button.classList.remove('active');
+          }else{
+            favoriteFoods.add(foodId);
+            button.classList.add('active');
+          }
+          saveJSON(STORAGE_KEYS.favorites,[...favoriteFoods]);
+          updateFoodList();
         });
-        foodModal.classList.add('open');
-        foodModal.setAttribute('aria-hidden','false');
-        document.body.style.overflow = 'hidden';
       });
-    });
 
-    function closeFoodModal(){
+      function closeFoodModal(){
       foodModal.classList.remove('open');
       foodModal.setAttribute('aria-hidden','true');
       document.body.style.overflow = '';
@@ -979,6 +865,10 @@
 
     const itineraryData = {"6": {"subtitle": "8月6日（木）・名古屋 → 台北", "events": [{"time": "22:50", "name": "中部国際空港 → 桃園", "meta": "MM723・Peach", "type": "transport", "primary": "運航情報", "primaryUrl": "https://www.flypeach.com/", "number": "移動", "station": "中部国際空港から桃園国際空港", "menu": "MM723|夜便", "budget": "航空券確認", "note": "到着後は深夜バスで台北駅へ。", "map": "https://www.google.com/maps/search/?api=1&query=Taiwan+Taoyuan+International+Airport"}, {"time": "01:10", "name": "桃園国際空港 到着", "meta": "入国・荷物受取", "type": "transport", "primary": "空港案内", "primaryUrl": "https://www.taoyuan-airport.com/", "number": "移動", "station": "桃園国際空港", "menu": "入国審査|荷物受取", "budget": "—", "note": "深夜バス1819または1961で台北駅へ。", "map": "https://www.google.com/maps/search/?api=1&query=Taiwan+Taoyuan+International+Airport"}, {"time": "深夜", "name": "NYS Loft Hotel", "meta": "台北駅周辺・チェックイン", "type": "hotel", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=NYS+Loft+Hotel+Taipei", "number": "ホテル", "station": "台北駅周辺", "menu": "チェックイン|休憩", "budget": "予約済み", "note": "8月7日深夜の宿泊。", "map": "https://www.google.com/maps/search/?api=1&query=NYS+Loft+Hotel+Taipei"}]}, "7": {"subtitle": "8月7日（金）・台北 → 台中", "events": [{"time": "11:00", "name": "杭州小籠湯包", "meta": "東門駅・徒歩8分", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=%E6%9D%AD%E5%B7%9E%E5%B0%8F%E7%B1%A0%E6%B9%AF%E5%8C%85%20%E5%8F%B0%E5%8C%97", "number": "T112", "station": "東門駅（R・O）・徒歩8分", "menu": "小籠湯包|蝦仁燒賣|酸辣湯", "budget": "約300～500 TWD", "note": "8月7日の昼食予定。", "map": "https://www.google.com/maps/search/?api=1&query=%E6%9D%AD%E5%B7%9E%E5%B0%8F%E7%B1%A0%E6%B9%AF%E5%8C%85%20%E5%8F%B0%E5%8C%97"}, {"time": "14:30", "name": "劉山東牛肉麵", "meta": "台北駅・徒歩約6分", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=%E5%8A%89%E5%B1%B1%E6%9D%B1%E7%89%9B%E8%82%89%E9%BA%B5%20%E5%8F%B0%E5%8C%97", "number": "T120", "station": "台北駅・徒歩約6分", "menu": "紅燒牛肉麵|清燉牛肉麵|小菜", "budget": "約200～350 TWD", "note": "台北駅周辺の老舗牛肉麺店。", "map": "https://www.google.com/maps/search/?api=1&query=%E5%8A%89%E5%B1%B1%E6%9D%B1%E7%89%9B%E8%82%89%E9%BA%B5%20%E5%8F%B0%E5%8C%97"}, {"time": "16:00", "name": "古早味豆花", "meta": "民權西路駅・徒歩圏", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=%E5%8F%A4%E6%97%A9%E5%91%B3%E8%B1%86%E8%8A%B1%20%E5%8F%B0%E5%8C%97", "number": "T123", "station": "民權西路駅・徒歩圏", "menu": "豆花|粉圓|ピーナッツ", "budget": "約60～100 TWD", "note": "台中への移動前に立ち寄る甘味。", "map": "https://www.google.com/maps/search/?api=1&query=%E5%8F%A4%E6%97%A9%E5%91%B3%E8%B1%86%E8%8A%B1%20%E5%8F%B0%E5%8C%97"}, {"time": "17:30", "name": "台北 → 台中", "meta": "高鐵で移動", "type": "transport", "primary": "時刻表・予約", "primaryUrl": "https://www.thsrc.com.tw/", "number": "移動", "station": "高鐵・約1時間以内", "menu": "台北駅から高鐵で台中へ", "budget": "乗車券を確認", "note": "台中到着後、HiRiver Hotelへ移動。", "map": "https://www.google.com/maps/search/?api=1&query=%E5%8F%B0%E4%B8%AD%E9%AB%98%E9%90%B5%E7%AB%99"}, {"time": "19:00", "name": "沁園春", "meta": "予約済み・台中", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=%E6%B2%81%E5%9C%92%E6%98%A5%20%E5%8F%B0%E4%B8%AD", "number": "T206", "station": "台中・予約済み", "menu": "小籠包|寧波排骨|炒飯", "budget": "約500～900 TWD", "note": "8月7日19時に予約済み。", "map": "https://www.google.com/maps/search/?api=1&query=%E6%B2%81%E5%9C%92%E6%98%A5%20%E5%8F%B0%E4%B8%AD"}]}, "8": {"subtitle": "8月8日（土）・日月潭／彰化", "events": [{"time": "09:00", "name": "姉家族と合流", "meta": "彰化から日月潭へ", "type": "transport", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=Sun+Moon+Lake", "number": "移動", "station": "車で日月潭へ", "menu": "日月潭観光|家族と合流", "budget": "—", "note": "姉家族と車で移動。", "map": "https://www.google.com/maps/search/?api=1&query=Sun+Moon+Lake"}, {"time": "昼", "name": "日月潭", "meta": "散策・昼食", "type": "spot", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=Sun+Moon+Lake", "number": "観光", "station": "南投県・日月潭", "menu": "湖畔散策|昼食", "budget": "現地精算", "note": "暑さに合わせて無理なく観光。", "map": "https://www.google.com/maps/search/?api=1&query=Sun+Moon+Lake"}, {"time": "夜", "name": "妍·烤物", "meta": "彰化市・姉家族と夕食", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=%E5%A6%8D%20%E7%83%A4%E7%89%A9%20%E5%BD%B0%E5%8C%96", "number": "T501", "station": "彰化市", "menu": "焼き物|串焼き|一品料理", "budget": "現地確認", "note": "姉家族と夕食。", "map": "https://www.google.com/maps/search/?api=1&query=%E5%A6%8D%20%E7%83%A4%E7%89%A9%20%E5%BD%B0%E5%8C%96"}]}, "9": {"subtitle": "8月9日（日）・台中 → 台南", "events": [{"time": "08:00", "name": "第二市場 食べ歩き", "meta": "台中・朝食", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=Taichung+Second+Market", "number": "T201ほか", "station": "台中第二市場", "menu": "山河魯肉飯|王記菜頭粿糯米腸|顏記肉包|老賴茶棧", "budget": "約250～450 TWD", "note": "10時頃まで食べ歩き。", "map": "https://www.google.com/maps/search/?api=1&query=Taichung+Second+Market"}, {"time": "11:30", "name": "審計新村・草悟道", "meta": "散策", "type": "spot", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=Shenji+New+Village", "number": "観光", "station": "台中市西区", "menu": "審計新村|草悟道", "budget": "—", "note": "暑さに合わせて休憩を挟む。", "map": "https://www.google.com/maps/search/?api=1&query=Shenji+New+Village"}, {"time": "13:00", "name": "馨苑小料理", "meta": "台中・昼食", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=%E9%A6%A8%E8%8B%91%E5%B0%8F%E6%96%99%E7%90%86%20%E5%8F%B0%E4%B8%AD", "number": "T214", "station": "草悟道エリア", "menu": "台湾家庭料理|季節の小皿|ご飯料理", "budget": "約500～900 TWD", "note": "台南へ向かう前の昼食。", "map": "https://www.google.com/maps/search/?api=1&query=%E9%A6%A8%E8%8B%91%E5%B0%8F%E6%96%99%E7%90%86%20%E5%8F%B0%E4%B8%AD"}, {"time": "15:00", "name": "台中 → 台南", "meta": "高鐵で移動", "type": "transport", "primary": "時刻表・予約", "primaryUrl": "https://www.thsrc.com.tw/", "number": "移動", "station": "高鐵台中駅から台南へ", "menu": "高鐵移動", "budget": "乗車券確認", "note": "16時頃に台南到着予定。", "map": "https://www.google.com/maps/search/?api=1&query=THSR+Tainan+Station"}, {"time": "夕方", "name": "台南の友人と合流", "meta": "Nan Sing Hotel", "type": "hotel", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=Nan+Sing+Hotel+Tainan", "number": "予定", "station": "台南市", "menu": "チェックイン|友人と夕食", "budget": "予約済み", "note": "友人と夕食予定。", "map": "https://www.google.com/maps/search/?api=1&query=Nan+Sing+Hotel+Tainan"}]}, "10": {"subtitle": "8月10日（月）・台南 → 台北", "events": [{"time": "08:30", "name": "美香吉早餐店", "meta": "安平・朝食", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=%E7%BE%8E%E9%A6%99%E5%90%89%E6%97%A9%E9%A4%90%E5%BA%97%20%E5%8F%B0%E5%8D%97", "number": "T310", "station": "台南・安平", "menu": "台湾式朝食|蛋餅|豆漿", "budget": "約100～200 TWD", "note": "台南最終日の朝食。", "map": "https://www.google.com/maps/search/?api=1&query=%E7%BE%8E%E9%A6%99%E5%90%89%E6%97%A9%E9%A4%90%E5%BA%97%20%E5%8F%B0%E5%8D%97"}, {"time": "11:20", "name": "阿村牛肉湯", "meta": "台南・牛肉湯", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=%E9%98%BF%E6%9D%91%E7%89%9B%E8%82%89%E6%B9%AF%20%E5%8F%B0%E5%8D%97", "number": "台南", "station": "台南市", "menu": "牛肉湯|白飯|炒牛肉", "budget": "約200～400 TWD", "note": "台南で必食の牛肉湯。", "map": "https://www.google.com/maps/search/?api=1&query=%E9%98%BF%E6%9D%91%E7%89%9B%E8%82%89%E6%B9%AF%20%E5%8F%B0%E5%8D%97"}, {"time": "13:30", "name": "台南 → 台北", "meta": "高鐵で移動", "type": "transport", "primary": "時刻表・予約", "primaryUrl": "https://www.thsrc.com.tw/", "number": "移動", "station": "高鐵台南駅から台北へ", "menu": "高鐵移動", "budget": "乗車券確認", "note": "14時30分頃に台北到着予定。", "map": "https://www.google.com/maps/search/?api=1&query=Taipei+Main+Station"}, {"time": "18:00", "name": "阿城鵝肉", "meta": "台北・夕食", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=%E9%98%BF%E5%9F%8E%E9%B5%9D%E8%82%89%20%E5%8F%B0%E5%8C%97", "number": "T106", "station": "台北市中山区", "menu": "鵝肉|鵝油飯|小菜", "budget": "約300～600 TWD", "note": "台北に戻って夕食。", "map": "https://www.google.com/maps/search/?api=1&query=%E9%98%BF%E5%9F%8E%E9%B5%9D%E8%82%89%20%E5%8F%B0%E5%8C%97"}, {"time": "19:30", "name": "雙城街夜市", "meta": "夜市散策", "type": "spot", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=Shuangcheng+Street+Night+Market", "number": "夜市", "station": "台北市中山区", "menu": "夜市散策|軽食", "budget": "現地精算", "note": "夕食後に無理のない範囲で散策。", "map": "https://www.google.com/maps/search/?api=1&query=Shuangcheng+Street+Night+Market"}]}, "11": {"subtitle": "8月11日（火）・宜蘭／羅東 日帰り", "events": [{"time": "08:00", "name": "台北 → 礁溪", "meta": "台鐵 自強号", "type": "transport", "primary": "台鐵時刻表", "primaryUrl": "https://www.railway.gov.tw/", "number": "移動", "station": "台北駅から礁溪駅", "menu": "自強号|台鐵", "budget": "乗車券確認", "note": "時刻は最終確認が必要。", "map": "https://www.google.com/maps/search/?api=1&query=Jiaoxi+Station"}, {"time": "09:15", "name": "柯氏蔥油餅", "meta": "礁溪・食べ歩き", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=%E6%9F%AF%E6%B0%8F%E8%94%A5%E6%B2%B9%E9%A4%85%20%E7%A4%81%E6%BA%AA", "number": "T301", "station": "礁溪", "menu": "蔥油餅加蛋|辣醬", "budget": "約60～100 TWD", "note": "礁溪到着後の食べ歩き。", "map": "https://www.google.com/maps/search/?api=1&query=%E6%9F%AF%E6%B0%8F%E8%94%A5%E6%B2%B9%E9%A4%85%20%E7%A4%81%E6%BA%AA"}, {"time": "昼", "name": "南方澳 海鮮", "meta": "海珍活海鮮 第一候補", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=%E6%B5%B7%E7%8F%8D%E6%B4%BB%E6%B5%B7%E9%AE%AE%20%E5%8D%97%E6%96%B9%E6%BE%B3", "number": "T304", "station": "南方澳", "menu": "海鮮料理|魚料理|炒飯", "budget": "約600～1,200 TWD", "note": "営業状況により富美・味珍へ変更。", "map": "https://www.google.com/maps/search/?api=1&query=%E6%B5%B7%E7%8F%8D%E6%B4%BB%E6%B5%B7%E9%AE%AE%20%E5%8D%97%E6%96%B9%E6%BE%B3"}, {"time": "夕方", "name": "羅東夜市", "meta": "食べ歩き", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=Luodong+Night+Market", "number": "T307ほか", "station": "羅東駅周辺", "menu": "阿灶伯當歸羊肉湯|義豐蔥油派|包心粉圓", "budget": "約250～500 TWD", "note": "20～21時頃に台北へ戻る予定。", "map": "https://www.google.com/maps/search/?api=1&query=Luodong+Night+Market"}]}, "12": {"subtitle": "8月12日（水）・台北 最終日", "events": [{"time": "11:00", "name": "雙月食品社", "meta": "台北・昼食", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=%E9%9B%99%E6%9C%88%E9%A3%9F%E5%93%81%E7%A4%BE%20%E5%8F%B0%E5%8C%97", "number": "T124", "station": "台北市", "menu": "蛤蜊燉雞湯|油飯|滷味", "budget": "約250～500 TWD", "note": "最終日の昼食。", "map": "https://www.google.com/maps/search/?api=1&query=%E9%9B%99%E6%9C%88%E9%A3%9F%E5%93%81%E7%A4%BE%20%E5%8F%B0%E5%8C%97"}, {"time": "13:30", "name": "濟南鮮湯包", "meta": "小籠包", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=%E6%BF%9F%E5%8D%97%E9%AE%AE%E6%B9%AF%E5%8C%85%20%E5%8F%B0%E5%8C%97", "number": "T117", "station": "忠孝新生駅周辺", "menu": "鮮肉湯包|絲瓜蝦仁湯包|炒飯", "budget": "約300～600 TWD", "note": "昼の食べ歩き2軒目。", "map": "https://www.google.com/maps/search/?api=1&query=%E6%BF%9F%E5%8D%97%E9%AE%AE%E6%B9%AF%E5%8C%85%20%E5%8F%B0%E5%8C%97"}, {"time": "15:00", "name": "豆花莊", "meta": "寧夏夜市周辺", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=%E8%B1%86%E8%8A%B1%E8%8E%8A%20%E5%8F%B0%E5%8C%97", "number": "T109", "station": "雙連駅周辺", "menu": "豆花|ピーナッツ|粉圓", "budget": "約60～100 TWD", "note": "午後の甘味。", "map": "https://www.google.com/maps/search/?api=1&query=%E8%B1%86%E8%8A%B1%E8%8E%8A%20%E5%8F%B0%E5%8C%97"}, {"time": "17:00", "name": "巧之味手工水餃", "meta": "善導寺駅周辺", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=%E5%B7%A7%E4%B9%8B%E5%91%B3%E6%89%8B%E5%B7%A5%E6%B0%B4%E9%A4%83%20%E5%8F%B0%E5%8C%97", "number": "T115", "station": "善導寺駅周辺", "menu": "高麗菜水餃|韭菜水餃|干貝水餃", "budget": "約150～300 TWD", "note": "夕方の軽食。", "map": "https://www.google.com/maps/search/?api=1&query=%E5%B7%A7%E4%B9%8B%E5%91%B3%E6%89%8B%E5%B7%A5%E6%B0%B4%E9%A4%83%20%E5%8F%B0%E5%8C%97"}, {"time": "夜", "name": "雞家莊", "meta": "最終夕食候補", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=%E9%9B%9E%E5%AE%B6%E8%8E%8A%20%E9%95%B7%E6%98%A5%E8%B7%AF", "number": "T125", "station": "松江南京駅・徒歩約7分", "menu": "三味雞|雞油飯|雞卷|雞家豆腐|雞蛋布丁", "budget": "約700～1,000 TWD", "note": "旅行最後の夕食候補。", "map": "https://www.google.com/maps/search/?api=1&query=%E9%9B%9E%E5%AE%B6%E8%8E%8A%20%E9%95%B7%E6%98%A5%E8%B7%AF"}, {"time": "22:20", "name": "台北駅 → 桃園空港", "meta": "空港MRT", "type": "transport", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=Taoyuan+Airport+MRT+Taipei+Main+Station", "number": "移動", "station": "台北駅から桃園空港へ", "menu": "空港MRT", "budget": "乗車券確認", "note": "深夜便に合わせて空港へ移動。", "map": "https://www.google.com/maps/search/?api=1&query=Taoyuan+Airport+MRT+Taipei+Main+Station"}]}};
 
+
+    const gourmetData = [{"id": "T101", "name": "阜杭豆漿", "region": "台北", "category": "豆漿・朝食", "tags": ["鹹豆漿", "朝食"], "menu": ["鹹豆漿", "厚餅夾蛋", "豆漿"]}, {"id": "T102", "name": "世界豆漿大王", "region": "台北", "category": "豆漿・朝食", "tags": ["豆漿", "朝食"], "menu": ["鹹豆漿", "蛋餅", "燒餅"]}, {"id": "T103", "name": "鼎泰豐", "region": "台北", "category": "小籠包", "tags": ["小籠包"], "menu": ["小籠包", "蝦仁炒飯", "酸辣湯"]}, {"id": "T104", "name": "金峰魯肉飯", "region": "台北", "category": "魯肉飯", "tags": ["魯肉飯"], "menu": ["魯肉飯", "滷蛋", "小菜"]}, {"id": "T105", "name": "小王煮瓜", "region": "台北", "category": "魯肉飯", "tags": ["魯肉飯"], "menu": ["黑金魯肉飯", "滷白菜", "滷蛋"]}, {"id": "T106", "name": "阿城鵝肉", "region": "台北", "category": "鵝肉", "tags": ["鵝肉", "旅程 8/10"], "menu": ["鵝肉", "鵝油飯", "小菜"]}, {"id": "T108", "name": "杉味豆花", "region": "台北", "category": "豆花", "tags": ["豆花"], "menu": ["豆花", "粉圓", "ピーナッツ"]}, {"id": "T109", "name": "豆花莊", "region": "台北", "category": "豆花", "tags": ["豆花", "旅程 8/12"], "menu": ["豆花", "粉圓", "ピーナッツ"]}, {"id": "T110", "name": "寧夏夜市", "region": "台北", "category": "夜市", "tags": ["夜市"], "menu": ["夜市食べ歩き"]}, {"id": "T111", "name": "饒河街夜市", "region": "台北", "category": "夜市", "tags": ["夜市"], "menu": ["夜市食べ歩き"]}, {"id": "T112", "name": "杭州小籠湯包", "region": "台北", "category": "小籠包・蒸餃", "tags": ["小籠包", "旅程 8/7"], "menu": ["小籠湯包", "蝦仁燒賣", "酸辣湯"]}, {"id": "T113", "name": "梁記嘉義雞肉飯", "region": "台北", "category": "雞肉飯", "tags": ["雞肉飯"], "menu": ["雞肉飯", "滷蛋", "小菜"]}, {"id": "T114", "name": "周記肉粥店", "region": "台北", "category": "肉粥", "tags": ["肉粥"], "menu": ["肉粥", "紅燒肉"]}, {"id": "T115", "name": "巧之味手工水餃", "region": "台北", "category": "水餃", "tags": ["水餃", "旅程 8/12"], "menu": ["高麗菜水餃", "韭菜水餃", "干貝水餃"]}, {"id": "T116", "name": "富霸王豬腳", "region": "台北", "category": "豬腳", "tags": ["豬腳"], "menu": ["豬腳", "滷肉飯", "滷蛋"]}, {"id": "T117", "name": "濟南鮮湯包", "region": "台北", "category": "小籠包", "tags": ["湯包", "旅程 8/12"], "menu": ["鮮肉湯包", "絲瓜蝦仁湯包", "炒飯"]}, {"id": "T118", "name": "黃記魯肉飯", "region": "台北", "category": "魯肉飯", "tags": ["魯肉飯"], "menu": ["魯肉飯", "焢肉", "小菜"]}, {"id": "T119", "name": "秦小姐豆漿店", "region": "台北", "category": "豆漿・朝食", "tags": ["豆漿", "朝食"], "menu": ["鹹豆漿", "蛋餅", "燒餅"]}, {"id": "T120", "name": "劉山東牛肉麵", "region": "台北", "category": "牛肉麵", "tags": ["牛肉麵", "旅程 8/7"], "menu": ["紅燒牛肉麵", "清燉牛肉麵", "小菜"]}, {"id": "T121", "name": "林東芳牛肉麵", "region": "台北", "category": "牛肉麵", "tags": ["牛肉麵"], "menu": ["牛肉麵", "花干", "小菜"]}, {"id": "T122", "name": "蘇杭点心店", "region": "台北", "category": "点心", "tags": ["小籠包", "点心"], "menu": ["小籠包", "蒸餃", "炒飯"]}, {"id": "T123", "name": "古早味豆花", "region": "台北", "category": "豆花", "tags": ["豆花", "旅程 8/7"], "menu": ["豆花", "粉圓", "ピーナッツ"]}, {"id": "T124", "name": "雙月食品社", "region": "台北", "category": "スープ・台湾料理", "tags": ["鶏湯", "旅程 8/12"], "menu": ["蛤蜊燉雞湯", "油飯", "滷味"]}, {"id": "T125", "name": "雞家莊", "region": "台北", "category": "台湾料理・台菜", "tags": ["三味雞", "最終日候補"], "menu": ["三味雞", "雞油飯", "雞卷", "雞家豆腐", "雞蛋布丁"]}, {"id": "T201", "name": "山河魯肉飯", "region": "台中", "category": "魯肉飯", "tags": ["第二市場", "旅程 8/9"], "menu": ["魯肉飯", "滷蛋"]}, {"id": "T202", "name": "王記菜頭粿糯米腸", "region": "台中", "category": "朝食", "tags": ["第二市場", "旅程 8/9"], "menu": ["菜頭粿", "糯米腸"]}, {"id": "T203", "name": "顏記肉包", "region": "台中", "category": "肉包", "tags": ["第二市場", "旅程 8/9"], "menu": ["肉包"]}, {"id": "T206", "name": "沁園春", "region": "台中", "category": "江浙料理", "tags": ["予約済み", "旅程 8/7"], "menu": ["小籠包", "寧波排骨", "炒飯"]}, {"id": "T208", "name": "老賴茶棧", "region": "台中", "category": "ドリンク", "tags": ["第二市場", "旅程 8/9"], "menu": ["紅茶", "豆香紅茶"]}, {"id": "T209", "name": "長山行豆花", "region": "台中", "category": "豆花", "tags": ["第二市場", "旅程 8/9"], "menu": ["豆花"]}, {"id": "T210", "name": "幸發亭", "region": "台中", "category": "かき氷", "tags": ["第二市場", "旅程 8/9"], "menu": ["かき氷"]}, {"id": "T211", "name": "可口牛肉麵", "region": "台中", "category": "牛肉麵", "tags": ["牛肉麵"], "menu": ["牛肉麵"]}, {"id": "T212", "name": "CAF’E de S’AIME", "region": "台中", "category": "カフェ", "tags": ["カフェ"], "menu": ["コーヒー", "デザート"]}, {"id": "T213", "name": "MISATO", "region": "台中", "category": "カフェ・スイーツ", "tags": ["カフェ"], "menu": ["スイーツ", "ドリンク"]}, {"id": "T214", "name": "馨苑小料理", "region": "台中", "category": "台湾料理", "tags": ["草悟道", "旅程 8/9"], "menu": ["台湾家庭料理", "季節の小皿", "ご飯料理"]}, {"id": "T301", "name": "柯氏蔥油餅（礁溪）", "region": "宜蘭", "category": "蔥油餅", "tags": ["礁溪", "旅程 8/11"], "menu": ["蔥油餅加蛋", "辣醬"]}, {"id": "T302", "name": "阿通伯魚丸（南方澳）", "region": "宜蘭", "category": "魚丸", "tags": ["南方澳"], "menu": ["魚丸湯"]}, {"id": "T303", "name": "富美活海鮮（南方澳）", "region": "宜蘭", "category": "海鮮", "tags": ["南方澳"], "menu": ["海鮮料理", "魚料理"]}, {"id": "T304", "name": "海珍活海鮮（南方澳）", "region": "宜蘭", "category": "海鮮", "tags": ["南方澳", "旅程 8/11"], "menu": ["海鮮料理", "魚料理", "炒飯"]}, {"id": "T305", "name": "味珍活海鮮（南方澳）", "region": "宜蘭", "category": "海鮮", "tags": ["南方澳"], "menu": ["海鮮料理", "魚料理"]}, {"id": "T306", "name": "廖榮川米糕（南方澳）", "region": "宜蘭", "category": "米糕", "tags": ["南方澳"], "menu": ["米糕"]}, {"id": "T307", "name": "阿灶伯當歸羊肉湯（羅東夜市）", "region": "宜蘭", "category": "羊肉湯", "tags": ["羅東夜市", "旅程 8/11"], "menu": ["當歸羊肉湯"]}, {"id": "T308", "name": "義豐蔥油派（羅東夜市）", "region": "宜蘭", "category": "蔥油派", "tags": ["羅東夜市", "旅程 8/11"], "menu": ["蔥油派"]}, {"id": "T309", "name": "包心粉圓（羅東夜市）", "region": "宜蘭", "category": "甜品", "tags": ["羅東夜市", "旅程 8/11"], "menu": ["包心粉圓"]}, {"id": "T310", "name": "美香吉早餐店（安平）", "region": "台南", "category": "朝食", "tags": ["安平", "旅程 8/10"], "menu": ["蛋餅", "豆漿", "台湾式朝食"]}, {"id": "T501", "name": "妍·烤物（彰化市）", "region": "彰化", "category": "焼き物", "tags": ["姉家族と夕食", "旅程 8/8"], "menu": ["焼き物", "串焼き", "一品料理"]}];
+    const gourmetPhotos = {"小籠包・蒸餃": "https://images.unsplash.com/photo-1563245372-f21724e3856d?auto=format&fit=crop&w=1000&q=82", "小籠包": "https://images.unsplash.com/photo-1563245372-f21724e3856d?auto=format&fit=crop&w=1000&q=82", "牛肉麵": "https://images.unsplash.com/photo-1555126634-323283e090fa?auto=format&fit=crop&w=1000&q=82", "豆花": "https://images.unsplash.com/photo-1563805042-7684c019e1cb?auto=format&fit=crop&w=1000&q=82", "海鮮": "https://images.unsplash.com/photo-1559847844-5315695dadae?auto=format&fit=crop&w=1000&q=82", "朝食": "https://images.unsplash.com/photo-1533777857889-4be7c70b33f7?auto=format&fit=crop&w=1000&q=82", "豆漿・朝食": "https://images.unsplash.com/photo-1533777857889-4be7c70b33f7?auto=format&fit=crop&w=1000&q=82", "台湾料理・台菜": "https://images.unsplash.com/photo-1569058242253-92a9c755a0ec?auto=format&fit=crop&w=1000&q=82", "台湾料理": "https://images.unsplash.com/photo-1515003197210-e0cd71810b5f?auto=format&fit=crop&w=1000&q=82", "江浙料理": "https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=1000&q=82", "焼き物": "https://images.unsplash.com/photo-1529692236671-f1f6cf9683ba?auto=format&fit=crop&w=1000&q=82"};
+    const defaultGourmetPhoto = "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=1000&q=82";
 
     const STORAGE_KEYS = {
       favorites: 'gavinTravelFavorites',
@@ -1188,6 +1078,7 @@
       renderHome(day);
       renderMap(day);
       renderConciergeLabel(day);
+      renderGourmetCards();
       window.scrollTo({top:0, behavior:'instant'});
     }
 
@@ -1250,27 +1141,7 @@
     window.addEventListener('offline', updateOnlineState);
     updateOnlineState();
 
-    // Favorites
-    foodCards.forEach(card => {
-      const photo = card.querySelector('.food-photo');
-      const foodId = card.querySelector('.food-number')?.textContent.trim() || card.dataset.search;
-      const button = document.createElement('button');
-      button.className = 'favorite-btn';
-      button.type = 'button';
-      button.setAttribute('aria-label','お気に入り');
-      button.textContent = '★';
-      button.classList.toggle('active', favoriteFoods.has(foodId));
-      button.addEventListener('click', event => {
-        event.stopPropagation();
-        if(favoriteFoods.has(foodId)){
-          favoriteFoods.delete(foodId);
-          button.classList.remove('active');
-        }else{
-          favoriteFoods.add(foodId);
-          button.classList.add('active');
-        }
-        saveJSON(STORAGE_KEYS.favorites,[...favoriteFoods]);
-        updateFoodList();
+    // Favorites and gourmet detail actions are bound after dynamic rendering.
       });
       photo.appendChild(button);
 
@@ -1413,7 +1284,7 @@
     document.getElementById('exportDataBtn')?.addEventListener('click', () => {
       const payload = {
         app:'Gavin Travel',
-        version:'1.5',
+        version:'2.0',
         exportedAt:new Date().toISOString(),
         selectedDay:currentSelectedDay,
         favorites:[...favoriteFoods],
@@ -1445,12 +1316,7 @@
         if(payload.selectedDay && itineraryData[payload.selectedDay]){
           renderItinerary(payload.selectedDay);
         }
-        document.querySelectorAll('.favorite-btn').forEach(button => {
-          const card = button.closest('.food-card');
-          const foodId = card.querySelector('.food-number')?.textContent.trim() || card.dataset.search;
-          button.classList.toggle('active',favoriteFoods.has(foodId));
-        });
-        updateFoodList();
+        renderGourmetCards();
         dataToolStatus.textContent = 'バックアップを読み込みました。';
       }catch(error){
         dataToolStatus.textContent = '読込に失敗しました。';
@@ -1459,6 +1325,7 @@
     });
 
     renderConciergeLabel(currentSelectedDay);
+    renderGourmetCards();
 
   </script>
 </body>
