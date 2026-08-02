@@ -310,6 +310,48 @@
     .detail-grid dt{color:var(--muted);font-size:14px}
     .detail-grid dd{margin:0;font-size:16px;line-height:1.45}
 
+
+    /* functional home / map additions */
+    .home-status{
+      display:flex;align-items:center;gap:8px;
+      color:var(--muted);font-size:14px;margin-top:-10px;margin-bottom:18px
+    }
+    .home-status strong{color:var(--gold)}
+    .home-list{display:grid;gap:11px}
+    .home-row{
+      display:grid;grid-template-columns:58px minmax(0,1fr);gap:12px;
+      padding:14px 15px;border-radius:18px;background:var(--card);
+      border:1px solid rgba(255,255,255,.06)
+    }
+    .home-row-time{font-size:17px;color:var(--gold);font-weight:850}
+    .home-row-name{font-size:18px;font-weight:800;line-height:1.3}
+    .home-row-meta{font-size:14px;color:var(--muted);margin-top:4px}
+    .map-day-head{
+      display:flex;justify-content:space-between;align-items:center;
+      gap:12px;margin:8px 0 16px
+    }
+    .map-day-head strong{font-size:20px}
+    .map-day-head span{font-size:14px;color:var(--muted)}
+    .map-list{display:grid;gap:13px}
+    .map-item{
+      padding:17px;border-radius:22px;
+      background:linear-gradient(180deg,var(--card2),var(--card));
+      border:1px solid rgba(255,255,255,.06)
+    }
+    .map-item-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+    .map-index{
+      min-width:34px;height:34px;border-radius:50%;display:grid;place-items:center;
+      background:var(--gold);color:#142018;font-weight:900
+    }
+    .map-copy{flex:1}
+    .map-copy h3{font-size:21px;line-height:1.3;margin:0 0 5px}
+    .map-copy p{font-size:14px;line-height:1.45;color:var(--muted);margin:0}
+    .map-item .map-btn{margin-top:14px;min-height:54px;font-size:17px}
+    .empty-screen{
+      padding:44px 18px;text-align:center;color:var(--muted);
+      background:var(--card);border-radius:22px
+    }
+
     .placeholder{
       min-height:60vh;display:grid;place-items:center;text-align:center;color:var(--muted)
     }
@@ -353,17 +395,18 @@
     </header>
 
     <section class="screen active" id="home">
-      <p class="eyebrow">2026年8月7日（金）・台北</p>
-      <h1>おはようございます</h1>
-      <p class="sub">今日も、おいしい台湾を楽しみましょう。</p>
+      <p class="eyebrow" id="homeDateLabel">2026年8月7日（金）・台北</p>
+      <h1 id="homeGreeting">おはようございます</h1>
+      <p class="sub" id="homeMessage">今日も、おいしい台湾を楽しみましょう。</p>
+      <div class="home-status" id="homeStatus"></div>
 
       <div class="next-card">
         <div class="next-inner">
           <div class="chip">次の予定</div>
-          <div class="time">11:00</div>
-          <div class="place">杭州小籠湯包</div>
-          <div class="meta">徒歩7分・小籠包</div>
-          <a class="map-btn" target="_blank" rel="noopener"
+          <div class="time" id="homeNextTime">11:00</div>
+          <div class="place" id="homeNextName">杭州小籠湯包</div>
+          <div class="meta" id="homeNextMeta">徒歩7分・小籠包</div>
+          <a class="map-btn" id="homeNextMap" target="_blank" rel="noopener"
              href="https://www.google.com/maps/search/?api=1&query=%E6%9D%AD%E5%B7%9E%E5%B0%8F%E7%B1%A0%E6%B9%AF%E5%8C%85%20%E5%8F%B0%E5%8C%97">
              📍 Googleマップで開く
           </a>
@@ -377,15 +420,22 @@
         <div class="summary-grid">
           <div class="mini-card">
             <div class="label">今日の予定</div>
-            <div class="big">4件</div>
-            <div class="small">台北グルメ巡り<br>夕方に台中へ</div>
+            <div class="big" id="homeEventCount">4件</div>
+            <div class="small" id="homeDaySummary">台北グルメ巡り<br>夕方に台中へ</div>
           </div>
           <div class="mini-card">
             <div class="label">今夜のホテル</div>
-            <div class="big">HiRiver</div>
-            <div class="small">台中駅周辺<br>チェックイン 18:45</div>
+            <div class="big" id="homeHotelName">HiRiver</div>
+            <div class="small" id="homeHotelMeta">台中駅周辺<br>チェックイン 18:45</div>
           </div>
         </div>
+      </section>
+
+      <section class="section">
+        <div class="section-head">
+          <h2>この日の予定</h2><span id="homeSelectedDayLabel">8月7日</span>
+        </div>
+        <div class="home-list" id="homeScheduleList"></div>
       </section>
 
       <section class="section">
@@ -613,7 +663,16 @@
     </section>
 
     <section class="screen" id="map">
-      <div class="placeholder"><div><strong>地図</strong>Googleマップ連携画面を追加予定です。</div></div>
+      <p class="eyebrow">台湾2026</p>
+      <h1 class="page-title">地図</h1>
+      <p class="sub" id="mapSubtitle">選択日の目的地</p>
+
+      <div class="map-day-head">
+        <strong id="mapDayTitle">8月7日（金）</strong>
+        <span id="mapDayCount">0件</span>
+      </div>
+
+      <div class="map-list" id="mapList"></div>
     </section>
     <section class="screen" id="concierge">
       <div class="placeholder"><div><strong>Gavin Concierge</strong>相談画面を追加予定です。</div></div>
@@ -686,14 +745,23 @@
   <script>
     const tabs = document.querySelectorAll('.tab');
     const screens = document.querySelectorAll('.screen');
+    let activeScreenId = 'home';
+    const screenScroll = {};
+
     tabs.forEach(tab => {
       tab.addEventListener('click', () => {
         const target = tab.dataset.screen;
+        screenScroll[activeScreenId] = window.scrollY;
+
         tabs.forEach(t => t.classList.remove('active'));
         screens.forEach(s => s.classList.remove('active'));
         tab.classList.add('active');
         document.getElementById(target).classList.add('active');
-        window.scrollTo({top:0, behavior:'instant'});
+
+        activeScreenId = target;
+        requestAnimationFrame(() => {
+          window.scrollTo({top:screenScroll[target] || 0, behavior:'instant'});
+        });
       });
     });
 
@@ -770,6 +838,142 @@
 
 
     const itineraryData = {"6": {"subtitle": "8月6日（木）・名古屋 → 台北", "events": [{"time": "22:50", "name": "中部国際空港 → 桃園", "meta": "MM723・Peach", "type": "transport", "primary": "運航情報", "primaryUrl": "https://www.flypeach.com/", "number": "移動", "station": "中部国際空港から桃園国際空港", "menu": "MM723|夜便", "budget": "航空券確認", "note": "到着後は深夜バスで台北駅へ。", "map": "https://www.google.com/maps/search/?api=1&query=Taiwan+Taoyuan+International+Airport"}, {"time": "01:10", "name": "桃園国際空港 到着", "meta": "入国・荷物受取", "type": "transport", "primary": "空港案内", "primaryUrl": "https://www.taoyuan-airport.com/", "number": "移動", "station": "桃園国際空港", "menu": "入国審査|荷物受取", "budget": "—", "note": "深夜バス1819または1961で台北駅へ。", "map": "https://www.google.com/maps/search/?api=1&query=Taiwan+Taoyuan+International+Airport"}, {"time": "深夜", "name": "NYS Loft Hotel", "meta": "台北駅周辺・チェックイン", "type": "hotel", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=NYS+Loft+Hotel+Taipei", "number": "ホテル", "station": "台北駅周辺", "menu": "チェックイン|休憩", "budget": "予約済み", "note": "8月7日深夜の宿泊。", "map": "https://www.google.com/maps/search/?api=1&query=NYS+Loft+Hotel+Taipei"}]}, "7": {"subtitle": "8月7日（金）・台北 → 台中", "events": [{"time": "11:00", "name": "杭州小籠湯包", "meta": "東門駅・徒歩8分", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=%E6%9D%AD%E5%B7%9E%E5%B0%8F%E7%B1%A0%E6%B9%AF%E5%8C%85%20%E5%8F%B0%E5%8C%97", "number": "T112", "station": "東門駅（R・O）・徒歩8分", "menu": "小籠湯包|蝦仁燒賣|酸辣湯", "budget": "約300～500 TWD", "note": "8月7日の昼食予定。", "map": "https://www.google.com/maps/search/?api=1&query=%E6%9D%AD%E5%B7%9E%E5%B0%8F%E7%B1%A0%E6%B9%AF%E5%8C%85%20%E5%8F%B0%E5%8C%97"}, {"time": "14:30", "name": "劉山東牛肉麵", "meta": "台北駅・徒歩約6分", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=%E5%8A%89%E5%B1%B1%E6%9D%B1%E7%89%9B%E8%82%89%E9%BA%B5%20%E5%8F%B0%E5%8C%97", "number": "T120", "station": "台北駅・徒歩約6分", "menu": "紅燒牛肉麵|清燉牛肉麵|小菜", "budget": "約200～350 TWD", "note": "台北駅周辺の老舗牛肉麺店。", "map": "https://www.google.com/maps/search/?api=1&query=%E5%8A%89%E5%B1%B1%E6%9D%B1%E7%89%9B%E8%82%89%E9%BA%B5%20%E5%8F%B0%E5%8C%97"}, {"time": "16:00", "name": "古早味豆花", "meta": "民權西路駅・徒歩圏", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=%E5%8F%A4%E6%97%A9%E5%91%B3%E8%B1%86%E8%8A%B1%20%E5%8F%B0%E5%8C%97", "number": "T123", "station": "民權西路駅・徒歩圏", "menu": "豆花|粉圓|ピーナッツ", "budget": "約60～100 TWD", "note": "台中への移動前に立ち寄る甘味。", "map": "https://www.google.com/maps/search/?api=1&query=%E5%8F%A4%E6%97%A9%E5%91%B3%E8%B1%86%E8%8A%B1%20%E5%8F%B0%E5%8C%97"}, {"time": "17:30", "name": "台北 → 台中", "meta": "高鐵で移動", "type": "transport", "primary": "時刻表・予約", "primaryUrl": "https://www.thsrc.com.tw/", "number": "移動", "station": "高鐵・約1時間以内", "menu": "台北駅から高鐵で台中へ", "budget": "乗車券を確認", "note": "台中到着後、HiRiver Hotelへ移動。", "map": "https://www.google.com/maps/search/?api=1&query=%E5%8F%B0%E4%B8%AD%E9%AB%98%E9%90%B5%E7%AB%99"}, {"time": "19:00", "name": "沁園春", "meta": "予約済み・台中", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=%E6%B2%81%E5%9C%92%E6%98%A5%20%E5%8F%B0%E4%B8%AD", "number": "T206", "station": "台中・予約済み", "menu": "小籠包|寧波排骨|炒飯", "budget": "約500～900 TWD", "note": "8月7日19時に予約済み。", "map": "https://www.google.com/maps/search/?api=1&query=%E6%B2%81%E5%9C%92%E6%98%A5%20%E5%8F%B0%E4%B8%AD"}]}, "8": {"subtitle": "8月8日（土）・日月潭／彰化", "events": [{"time": "09:00", "name": "姉家族と合流", "meta": "彰化から日月潭へ", "type": "transport", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=Sun+Moon+Lake", "number": "移動", "station": "車で日月潭へ", "menu": "日月潭観光|家族と合流", "budget": "—", "note": "姉家族と車で移動。", "map": "https://www.google.com/maps/search/?api=1&query=Sun+Moon+Lake"}, {"time": "昼", "name": "日月潭", "meta": "散策・昼食", "type": "spot", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=Sun+Moon+Lake", "number": "観光", "station": "南投県・日月潭", "menu": "湖畔散策|昼食", "budget": "現地精算", "note": "暑さに合わせて無理なく観光。", "map": "https://www.google.com/maps/search/?api=1&query=Sun+Moon+Lake"}, {"time": "夜", "name": "妍·烤物", "meta": "彰化市・姉家族と夕食", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=%E5%A6%8D%20%E7%83%A4%E7%89%A9%20%E5%BD%B0%E5%8C%96", "number": "T501", "station": "彰化市", "menu": "焼き物|串焼き|一品料理", "budget": "現地確認", "note": "姉家族と夕食。", "map": "https://www.google.com/maps/search/?api=1&query=%E5%A6%8D%20%E7%83%A4%E7%89%A9%20%E5%BD%B0%E5%8C%96"}]}, "9": {"subtitle": "8月9日（日）・台中 → 台南", "events": [{"time": "08:00", "name": "第二市場 食べ歩き", "meta": "台中・朝食", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=Taichung+Second+Market", "number": "T201ほか", "station": "台中第二市場", "menu": "山河魯肉飯|王記菜頭粿糯米腸|顏記肉包|老賴茶棧", "budget": "約250～450 TWD", "note": "10時頃まで食べ歩き。", "map": "https://www.google.com/maps/search/?api=1&query=Taichung+Second+Market"}, {"time": "11:30", "name": "審計新村・草悟道", "meta": "散策", "type": "spot", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=Shenji+New+Village", "number": "観光", "station": "台中市西区", "menu": "審計新村|草悟道", "budget": "—", "note": "暑さに合わせて休憩を挟む。", "map": "https://www.google.com/maps/search/?api=1&query=Shenji+New+Village"}, {"time": "13:00", "name": "馨苑小料理", "meta": "台中・昼食", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=%E9%A6%A8%E8%8B%91%E5%B0%8F%E6%96%99%E7%90%86%20%E5%8F%B0%E4%B8%AD", "number": "T214", "station": "草悟道エリア", "menu": "台湾家庭料理|季節の小皿|ご飯料理", "budget": "約500～900 TWD", "note": "台南へ向かう前の昼食。", "map": "https://www.google.com/maps/search/?api=1&query=%E9%A6%A8%E8%8B%91%E5%B0%8F%E6%96%99%E7%90%86%20%E5%8F%B0%E4%B8%AD"}, {"time": "15:00", "name": "台中 → 台南", "meta": "高鐵で移動", "type": "transport", "primary": "時刻表・予約", "primaryUrl": "https://www.thsrc.com.tw/", "number": "移動", "station": "高鐵台中駅から台南へ", "menu": "高鐵移動", "budget": "乗車券確認", "note": "16時頃に台南到着予定。", "map": "https://www.google.com/maps/search/?api=1&query=THSR+Tainan+Station"}, {"time": "夕方", "name": "台南の友人と合流", "meta": "Nan Sing Hotel", "type": "hotel", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=Nan+Sing+Hotel+Tainan", "number": "予定", "station": "台南市", "menu": "チェックイン|友人と夕食", "budget": "予約済み", "note": "友人と夕食予定。", "map": "https://www.google.com/maps/search/?api=1&query=Nan+Sing+Hotel+Tainan"}]}, "10": {"subtitle": "8月10日（月）・台南 → 台北", "events": [{"time": "08:30", "name": "美香吉早餐店", "meta": "安平・朝食", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=%E7%BE%8E%E9%A6%99%E5%90%89%E6%97%A9%E9%A4%90%E5%BA%97%20%E5%8F%B0%E5%8D%97", "number": "T310", "station": "台南・安平", "menu": "台湾式朝食|蛋餅|豆漿", "budget": "約100～200 TWD", "note": "台南最終日の朝食。", "map": "https://www.google.com/maps/search/?api=1&query=%E7%BE%8E%E9%A6%99%E5%90%89%E6%97%A9%E9%A4%90%E5%BA%97%20%E5%8F%B0%E5%8D%97"}, {"time": "11:20", "name": "阿村牛肉湯", "meta": "台南・牛肉湯", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=%E9%98%BF%E6%9D%91%E7%89%9B%E8%82%89%E6%B9%AF%20%E5%8F%B0%E5%8D%97", "number": "台南", "station": "台南市", "menu": "牛肉湯|白飯|炒牛肉", "budget": "約200～400 TWD", "note": "台南で必食の牛肉湯。", "map": "https://www.google.com/maps/search/?api=1&query=%E9%98%BF%E6%9D%91%E7%89%9B%E8%82%89%E6%B9%AF%20%E5%8F%B0%E5%8D%97"}, {"time": "13:30", "name": "台南 → 台北", "meta": "高鐵で移動", "type": "transport", "primary": "時刻表・予約", "primaryUrl": "https://www.thsrc.com.tw/", "number": "移動", "station": "高鐵台南駅から台北へ", "menu": "高鐵移動", "budget": "乗車券確認", "note": "14時30分頃に台北到着予定。", "map": "https://www.google.com/maps/search/?api=1&query=Taipei+Main+Station"}, {"time": "18:00", "name": "阿城鵝肉", "meta": "台北・夕食", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=%E9%98%BF%E5%9F%8E%E9%B5%9D%E8%82%89%20%E5%8F%B0%E5%8C%97", "number": "T106", "station": "台北市中山区", "menu": "鵝肉|鵝油飯|小菜", "budget": "約300～600 TWD", "note": "台北に戻って夕食。", "map": "https://www.google.com/maps/search/?api=1&query=%E9%98%BF%E5%9F%8E%E9%B5%9D%E8%82%89%20%E5%8F%B0%E5%8C%97"}, {"time": "19:30", "name": "雙城街夜市", "meta": "夜市散策", "type": "spot", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=Shuangcheng+Street+Night+Market", "number": "夜市", "station": "台北市中山区", "menu": "夜市散策|軽食", "budget": "現地精算", "note": "夕食後に無理のない範囲で散策。", "map": "https://www.google.com/maps/search/?api=1&query=Shuangcheng+Street+Night+Market"}]}, "11": {"subtitle": "8月11日（火）・宜蘭／羅東 日帰り", "events": [{"time": "08:00", "name": "台北 → 礁溪", "meta": "台鐵 自強号", "type": "transport", "primary": "台鐵時刻表", "primaryUrl": "https://www.railway.gov.tw/", "number": "移動", "station": "台北駅から礁溪駅", "menu": "自強号|台鐵", "budget": "乗車券確認", "note": "時刻は最終確認が必要。", "map": "https://www.google.com/maps/search/?api=1&query=Jiaoxi+Station"}, {"time": "09:15", "name": "柯氏蔥油餅", "meta": "礁溪・食べ歩き", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=%E6%9F%AF%E6%B0%8F%E8%94%A5%E6%B2%B9%E9%A4%85%20%E7%A4%81%E6%BA%AA", "number": "T301", "station": "礁溪", "menu": "蔥油餅加蛋|辣醬", "budget": "約60～100 TWD", "note": "礁溪到着後の食べ歩き。", "map": "https://www.google.com/maps/search/?api=1&query=%E6%9F%AF%E6%B0%8F%E8%94%A5%E6%B2%B9%E9%A4%85%20%E7%A4%81%E6%BA%AA"}, {"time": "昼", "name": "南方澳 海鮮", "meta": "海珍活海鮮 第一候補", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=%E6%B5%B7%E7%8F%8D%E6%B4%BB%E6%B5%B7%E9%AE%AE%20%E5%8D%97%E6%96%B9%E6%BE%B3", "number": "T304", "station": "南方澳", "menu": "海鮮料理|魚料理|炒飯", "budget": "約600～1,200 TWD", "note": "営業状況により富美・味珍へ変更。", "map": "https://www.google.com/maps/search/?api=1&query=%E6%B5%B7%E7%8F%8D%E6%B4%BB%E6%B5%B7%E9%AE%AE%20%E5%8D%97%E6%96%B9%E6%BE%B3"}, {"time": "夕方", "name": "羅東夜市", "meta": "食べ歩き", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=Luodong+Night+Market", "number": "T307ほか", "station": "羅東駅周辺", "menu": "阿灶伯當歸羊肉湯|義豐蔥油派|包心粉圓", "budget": "約250～500 TWD", "note": "20～21時頃に台北へ戻る予定。", "map": "https://www.google.com/maps/search/?api=1&query=Luodong+Night+Market"}]}, "12": {"subtitle": "8月12日（水）・台北 最終日", "events": [{"time": "11:00", "name": "雙月食品社", "meta": "台北・昼食", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=%E9%9B%99%E6%9C%88%E9%A3%9F%E5%93%81%E7%A4%BE%20%E5%8F%B0%E5%8C%97", "number": "T124", "station": "台北市", "menu": "蛤蜊燉雞湯|油飯|滷味", "budget": "約250～500 TWD", "note": "最終日の昼食。", "map": "https://www.google.com/maps/search/?api=1&query=%E9%9B%99%E6%9C%88%E9%A3%9F%E5%93%81%E7%A4%BE%20%E5%8F%B0%E5%8C%97"}, {"time": "13:30", "name": "濟南鮮湯包", "meta": "小籠包", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=%E6%BF%9F%E5%8D%97%E9%AE%AE%E6%B9%AF%E5%8C%85%20%E5%8F%B0%E5%8C%97", "number": "T117", "station": "忠孝新生駅周辺", "menu": "鮮肉湯包|絲瓜蝦仁湯包|炒飯", "budget": "約300～600 TWD", "note": "昼の食べ歩き2軒目。", "map": "https://www.google.com/maps/search/?api=1&query=%E6%BF%9F%E5%8D%97%E9%AE%AE%E6%B9%AF%E5%8C%85%20%E5%8F%B0%E5%8C%97"}, {"time": "15:00", "name": "豆花莊", "meta": "寧夏夜市周辺", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=%E8%B1%86%E8%8A%B1%E8%8E%8A%20%E5%8F%B0%E5%8C%97", "number": "T109", "station": "雙連駅周辺", "menu": "豆花|ピーナッツ|粉圓", "budget": "約60～100 TWD", "note": "午後の甘味。", "map": "https://www.google.com/maps/search/?api=1&query=%E8%B1%86%E8%8A%B1%E8%8E%8A%20%E5%8F%B0%E5%8C%97"}, {"time": "17:00", "name": "巧之味手工水餃", "meta": "善導寺駅周辺", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=%E5%B7%A7%E4%B9%8B%E5%91%B3%E6%89%8B%E5%B7%A5%E6%B0%B4%E9%A4%83%20%E5%8F%B0%E5%8C%97", "number": "T115", "station": "善導寺駅周辺", "menu": "高麗菜水餃|韭菜水餃|干貝水餃", "budget": "約150～300 TWD", "note": "夕方の軽食。", "map": "https://www.google.com/maps/search/?api=1&query=%E5%B7%A7%E4%B9%8B%E5%91%B3%E6%89%8B%E5%B7%A5%E6%B0%B4%E9%A4%83%20%E5%8F%B0%E5%8C%97"}, {"time": "夜", "name": "雞家莊", "meta": "最終夕食候補", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=%E9%9B%9E%E5%AE%B6%E8%8E%8A%20%E9%95%B7%E6%98%A5%E8%B7%AF", "number": "T125", "station": "松江南京駅・徒歩約7分", "menu": "三味雞|雞油飯|雞卷|雞家豆腐|雞蛋布丁", "budget": "約700～1,000 TWD", "note": "旅行最後の夕食候補。", "map": "https://www.google.com/maps/search/?api=1&query=%E9%9B%9E%E5%AE%B6%E8%8E%8A%20%E9%95%B7%E6%98%A5%E8%B7%AF"}, {"time": "22:20", "name": "台北駅 → 桃園空港", "meta": "空港MRT", "type": "transport", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=Taoyuan+Airport+MRT+Taipei+Main+Station", "number": "移動", "station": "台北駅から桃園空港へ", "menu": "空港MRT", "budget": "乗車券確認", "note": "深夜便に合わせて空港へ移動。", "map": "https://www.google.com/maps/search/?api=1&query=Taoyuan+Airport+MRT+Taipei+Main+Station"}]}};
+
+    const dayMeta = {
+      "6": {label:"2026年8月6日（木）・名古屋 → 台北", short:"8月6日", hotel:"NYS Loft", hotelMeta:"台北駅周辺<br>深夜チェックイン"},
+      "7": {label:"2026年8月7日（金）・台北 → 台中", short:"8月7日", hotel:"HiRiver", hotelMeta:"台中駅周辺<br>チェックイン 18:45"},
+      "8": {label:"2026年8月8日（土）・日月潭／彰化", short:"8月8日", hotel:"HiRiver", hotelMeta:"台中・2泊目"},
+      "9": {label:"2026年8月9日（日）・台中 → 台南", short:"8月9日", hotel:"Nan Sing", hotelMeta:"台南・1泊"},
+      "10": {label:"2026年8月10日（月）・台南 → 台北", short:"8月10日", hotel:"NYS Loft", hotelMeta:"台北・3泊"},
+      "11": {label:"2026年8月11日（火）・宜蘭／羅東", short:"8月11日", hotel:"NYS Loft", hotelMeta:"台北・2泊目"},
+      "12": {label:"2026年8月12日（水）・台北 最終日", short:"8月12日", hotel:"宿泊なし", hotelMeta:"22:20 空港へ移動"}
+    };
+
+    const homeDateLabel = document.getElementById('homeDateLabel');
+    const homeGreeting = document.getElementById('homeGreeting');
+    const homeMessage = document.getElementById('homeMessage');
+    const homeStatus = document.getElementById('homeStatus');
+    const homeNextTime = document.getElementById('homeNextTime');
+    const homeNextName = document.getElementById('homeNextName');
+    const homeNextMeta = document.getElementById('homeNextMeta');
+    const homeNextMap = document.getElementById('homeNextMap');
+    const homeEventCount = document.getElementById('homeEventCount');
+    const homeDaySummary = document.getElementById('homeDaySummary');
+    const homeHotelName = document.getElementById('homeHotelName');
+    const homeHotelMeta = document.getElementById('homeHotelMeta');
+    const homeScheduleList = document.getElementById('homeScheduleList');
+    const homeSelectedDayLabel = document.getElementById('homeSelectedDayLabel');
+    const mapSubtitle = document.getElementById('mapSubtitle');
+    const mapDayTitle = document.getElementById('mapDayTitle');
+    const mapDayCount = document.getElementById('mapDayCount');
+    const mapList = document.getElementById('mapList');
+
+    function timeToMinutes(value){
+      if(!/^\d{1,2}:\d{2}$/.test(value)) return null;
+      const [h,m] = value.split(':').map(Number);
+      return h * 60 + m;
+    }
+
+    function getGreeting(){
+      const hour = new Date().getHours();
+      if(hour < 11) return "おはようございます";
+      if(hour < 18) return "こんにちは";
+      return "こんばんは";
+    }
+
+    function pickNextEvent(day){
+      const events = itineraryData[day]?.events || [];
+      const now = new Date();
+
+      // During the actual trip, choose by current time. Outside the trip, show the first item.
+      const tripDate = new Date(2026, 7, Number(day));
+      const sameDate =
+        now.getFullYear() === tripDate.getFullYear() &&
+        now.getMonth() === tripDate.getMonth() &&
+        now.getDate() === tripDate.getDate();
+
+      if(!sameDate) return events[0] || null;
+
+      const nowMinutes = now.getHours() * 60 + now.getMinutes();
+      return events.find(event => {
+        const minutes = timeToMinutes(event.time);
+        return minutes !== null && minutes >= nowMinutes;
+      }) || events[events.length - 1] || null;
+    }
+
+    function renderHome(day){
+      const data = itineraryData[day];
+      const meta = dayMeta[day];
+      if(!data || !meta) return;
+
+      const next = pickNextEvent(day);
+      homeDateLabel.textContent = meta.label;
+      homeGreeting.textContent = getGreeting();
+      homeMessage.textContent = day === "12"
+        ? "台湾旅行の最終日です。最後まで楽しみましょう。"
+        : "今日も、おいしい台湾を楽しみましょう。";
+      homeStatus.innerHTML = `<strong>${meta.short}</strong> の予定を表示中`;
+      homeSelectedDayLabel.textContent = meta.short;
+
+      if(next){
+        homeNextTime.textContent = next.time;
+        homeNextName.textContent = next.name;
+        homeNextMeta.textContent = next.meta;
+        homeNextMap.href = next.map;
+        homeNextMap.style.display = next.map ? "flex" : "none";
+      }else{
+        homeNextTime.textContent = "—";
+        homeNextName.textContent = "予定はありません";
+        homeNextMeta.textContent = "";
+        homeNextMap.style.display = "none";
+      }
+
+      homeEventCount.textContent = `${data.events.length}件`;
+      homeDaySummary.innerHTML = data.events.slice(0,2)
+        .map(event => escapeHtml(event.name)).join("<br>");
+      homeHotelName.textContent = meta.hotel;
+      homeHotelMeta.innerHTML = meta.hotelMeta;
+
+      homeScheduleList.innerHTML = data.events.map(event => `
+        <div class="home-row">
+          <div class="home-row-time">${escapeHtml(event.time)}</div>
+          <div>
+            <div class="home-row-name">${escapeHtml(event.name)}</div>
+            <div class="home-row-meta">${escapeHtml(event.meta)}</div>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function renderMap(day){
+      const data = itineraryData[day];
+      const meta = dayMeta[day];
+      if(!data || !meta) return;
+
+      mapSubtitle.textContent = `${meta.short}の目的地`;
+      mapDayTitle.textContent = meta.label.replace("2026年","").split("・")[0];
+      mapDayCount.textContent = `${data.events.length}件`;
+
+      if(!data.events.length){
+        mapList.innerHTML = '<div class="empty-screen">この日の目的地はありません。</div>';
+        return;
+      }
+
+      mapList.innerHTML = data.events.map((event,index) => `
+        <article class="map-item">
+          <div class="map-item-top">
+            <div class="map-index">${index + 1}</div>
+            <div class="map-copy">
+              <h3>${escapeHtml(event.name)}</h3>
+              <p>${escapeHtml(event.time)}・${escapeHtml(event.meta)}</p>
+            </div>
+          </div>
+          <a class="map-btn" href="${escapeHtml(event.map)}" target="_blank" rel="noopener">
+            📍 Googleマップで開く
+          </a>
+        </article>
+      `).join("");
+    }
     const timeline = document.getElementById('timeline');
     const itinerarySubtitle = document.querySelector('#itinerary .sub');
     const dateButtons = [...document.querySelectorAll('#dateStrip .date-pill')];
@@ -815,6 +1019,8 @@
       `).join('');
 
       sessionStorage.setItem('gavinSelectedDay', day);
+      renderHome(day);
+      renderMap(day);
       window.scrollTo({top:0, behavior:'instant'});
     }
 
