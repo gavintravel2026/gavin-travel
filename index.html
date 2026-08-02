@@ -63,7 +63,7 @@
       overflow:hidden;
       background:
         linear-gradient(180deg,rgba(2,7,5,.1),rgba(3,11,8,.94)),
-        url('https://tse1.mm.bing.net/th?q=%E6%9D%AD%E5%B7%9E%E5%B0%8F%E7%B1%A0%E6%B9%AF%E5%8C%85%20%E5%8F%B0%E5%8C%97%20%E5%B0%8F%E7%B1%A0%E5%8C%85%20%E6%96%99%E7%90%86%E5%86%99%E7%9C%9F%20%E5%AE%9F%E7%89%A9%20-%E3%83%A1%E3%83%8B%E3%83%A5%E3%83%BC%20-menu%20-%E7%9C%8B%E6%9D%BF&w=1200&h=800&c=7&rs=1&p=0') center/cover;
+        url('https://images.unsplash.com/photo-1563245372-f21724e3856d?auto=format&fit=crop&w=1200&q=85') center/cover;
       box-shadow:var(--shadow);
       border:1px solid rgba(255,255,255,.08)
     }
@@ -316,26 +316,6 @@
 
 
     /* functional home / map additions */
-
-    .location-card{
-      margin-top:14px;padding:16px;border-radius:20px;
-      background:var(--card);border:1px solid rgba(255,255,255,.07)
-    }
-    .location-card-top{
-      display:flex;align-items:center;justify-content:space-between;gap:12px
-    }
-    .location-card h3{font-size:18px;margin:0 0 5px}
-    .location-status{font-size:14px;color:var(--muted);line-height:1.45}
-    .location-actions{
-      display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px
-    }
-    .location-btn{
-      min-height:48px;border-radius:14px;border:1px solid rgba(255,255,255,.08);
-      background:#162d24;color:var(--text);font-size:14px;font-weight:850
-    }
-    .location-btn.primary{background:var(--gold);color:#142018}
-    .location-btn:disabled{opacity:.45}
-
     .home-status{
       display:flex;align-items:center;gap:8px;
       color:var(--muted);font-size:14px;margin-top:-10px;margin-bottom:18px
@@ -588,19 +568,6 @@
         </div>
       </div>
 
-      <div class="location-card">
-        <div class="location-card-top">
-          <div>
-            <h3>📍 現在地から次の予定へ</h3>
-            <div class="location-status" id="locationStatus">現在地を取得すると、Googleマップで徒歩ルートを開けます。</div>
-          </div>
-        </div>
-        <div class="location-actions">
-          <button class="location-btn" id="getLocationBtn" type="button">現在地を取得</button>
-          <button class="location-btn primary" id="openWalkingRouteBtn" type="button" disabled>徒歩ルートを開く</button>
-        </div>
-      </div>
-
       <section class="section">
         <div class="section-head">
           <h2>旅行の概要</h2><span>台湾2026</span>
@@ -706,7 +673,7 @@
 
       <div class="food-list" id="foodList"></div>
       <div class="source-note">
-        写真は店名・地域・代表料理を指定し、メニュー表や看板を除外して料理写真を読み込みます。グルメ番号と登録内容は台湾2026グルメブックを基準にしています。
+        グルメ番号は、これまで確定した台湾2026グルメブックの登録内容を基準にしています。
       </div>
 
       <div class="empty-result" id="emptyResult">該当するお店がありません。</div>
@@ -870,15 +837,6 @@
     const modalNote = document.getElementById('modalNote');
     const modalMap = document.getElementById('modalMap');
 
-
-    function restaurantPhotoUrl(item){
-      const representativeDish = item.menu?.[0] || item.category || '料理';
-      const query =
-        `${item.name} ${item.region} ${representativeDish} 料理写真 実物 ` +
-        `-メニュー -menu -看板 -価格表 -店頭`;
-      return `https://tse1.mm.bing.net/th?q=${encodeURIComponent(query)}&w=1000&h=650&c=7&rs=1&p=0`;
-    }
-
     function mapSearchUrl(name){
       return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name + ' 台湾')}`;
     }
@@ -901,7 +859,7 @@
         if(!rows.length) return '';
 
         const cards = rows.map(item => {
-          const photo = restaurantPhotoUrl(item);
+          const photo = gourmetPhotos[item.category] || defaultGourmetPhoto;
           const plainName = item.name.replace(/（.*?）/g,'');
           const isToday = [...dayNames].some(name =>
             name.includes(plainName) || plainName.includes(name)
@@ -1427,31 +1385,6 @@
       return data.events.map(event => `${event.time}　${event.name}`).join('\n');
     }
 
-
-    function findItineraryMatches(question){
-      const q = normalizeQuestion(question);
-      const results = [];
-
-      Object.entries(itineraryData).forEach(([day,data]) => {
-        data.events.forEach(event => {
-          const haystack = normalizeQuestion([
-            event.name,event.meta,event.station,event.menu,event.note,event.number
-          ].filter(Boolean).join(' '));
-
-          if(
-            q.includes(normalizeQuestion(event.name)) ||
-            haystack.includes(q) ||
-            [...q].filter(char => char.trim()).length >= 2 &&
-            normalizeQuestion(event.name).includes(q)
-          ){
-            results.push({day,event});
-          }
-        });
-      });
-
-      return results;
-    }
-
     function answerTravelQuestion(question){
       const q = normalizeQuestion(question);
       const day = extractDayFromQuestion(question);
@@ -1505,15 +1438,7 @@
         return `${gourmet.id} ${gourmet.name}\n${gourmet.region}・${gourmet.category}\nおすすめ：${gourmet.menu.join('、')}`;
       }
 
-      const itineraryMatches = findItineraryMatches(question);
-      if(itineraryMatches.length){
-        return itineraryMatches.slice(0,5).map(match => {
-          const meta = dayMeta[match.day];
-          return `${meta?.short || `8月${match.day}日`} ${match.event.time}\n${match.event.name}\n${match.event.meta}`;
-        }).join('\n\n');
-      }
-
-      return `旅程・ホテル・食事・移動・T番号について質問できます。\n例：「8月10日の夜ご飯は？」「羅東夜市はいつ？」「T125のおすすめは？」`;
+      return `旅程・ホテル・食事・移動・T番号について質問できます。\n例：「8月10日の夜ご飯は？」「T125のおすすめは？」`;
     }
 
     function sendChatQuestion(prefilled){
@@ -1674,89 +1599,6 @@
         document.getElementById('chatInput')?.focus();
       });
     });
-
-
-    // Current location → next destination
-    let currentPosition = null;
-    const locationStatus = document.getElementById('locationStatus');
-    const getLocationBtn = document.getElementById('getLocationBtn');
-    const openWalkingRouteBtn = document.getElementById('openWalkingRouteBtn');
-
-    function currentNextEvent(){
-      return pickNextEvent(currentSelectedDay);
-    }
-
-    function updateWalkingButton(){
-      const next = currentNextEvent();
-      openWalkingRouteBtn.disabled = !(currentPosition && next);
-    }
-
-    getLocationBtn?.addEventListener('click', () => {
-      if(!navigator.geolocation){
-        locationStatus.textContent = 'この端末では現在地を取得できません。';
-        return;
-      }
-
-      getLocationBtn.disabled = true;
-      locationStatus.textContent = '現在地を取得しています…';
-
-      navigator.geolocation.getCurrentPosition(
-        position => {
-          currentPosition = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-          };
-          const next = currentNextEvent();
-          locationStatus.textContent = next
-            ? `現在地を取得しました。次は「${next.name}」です。`
-            : '現在地を取得しました。次の予定はありません。';
-          getLocationBtn.textContent = '現在地を更新';
-          getLocationBtn.disabled = false;
-          updateWalkingButton();
-        },
-        error => {
-          const messages = {
-            1:'位置情報の利用を許可してください。',
-            2:'現在地を取得できませんでした。',
-            3:'現在地の取得がタイムアウトしました。'
-          };
-          locationStatus.textContent = messages[error.code] || '現在地を取得できませんでした。';
-          getLocationBtn.disabled = false;
-        },
-        {
-          enableHighAccuracy:true,
-          timeout:12000,
-          maximumAge:60000
-        }
-      );
-    });
-
-    openWalkingRouteBtn?.addEventListener('click', () => {
-      const next = currentNextEvent();
-      if(!currentPosition || !next) return;
-
-      const origin = `${currentPosition.lat},${currentPosition.lng}`;
-      const destination = next.name;
-      const url =
-        `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}` +
-        `&destination=${encodeURIComponent(destination)}` +
-        `&travelmode=walking`;
-
-      window.location.href = url;
-    });
-
-    // Keep the route button in sync when the selected day changes.
-    const originalRenderHome = renderHome;
-    renderHome = function(day){
-      originalRenderHome(day);
-      updateWalkingButton();
-      if(currentPosition){
-        const next = currentNextEvent();
-        locationStatus.textContent = next
-          ? `現在地を取得済みです。次は「${next.name}」です。`
-          : '現在地を取得済みです。次の予定はありません。';
-      }
-    };
 
 </script>
 </body>
