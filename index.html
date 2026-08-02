@@ -192,6 +192,7 @@
       display:block;
       white-space:nowrap;
     }
+    .event-time br{display:block}
     .event-card{
       grid-column:3;
       border-radius:22px;padding:18px;
@@ -1139,7 +1140,7 @@
 
       homeScheduleList.innerHTML = data.events.map(event => `
         <div class="home-row">
-          <div class="home-row-time">${formatEventTime(event.time)}</div>
+          <div class="home-row-time">${escapeHtml(event.time)}</div>
           <div>
             <div class="home-row-name">${escapeHtml(event.name)}</div>
             <div class="home-row-meta">${escapeHtml(event.meta)}</div>
@@ -1168,7 +1169,7 @@
             <div class="map-index">${index + 1}</div>
             <div class="map-copy">
               <h3>${escapeHtml(event.name)}</h3>
-              <p>${formatEventTime(event.time)}・${escapeHtml(event.meta)}</p>
+              <p>${escapeHtml(event.time)}・${escapeHtml(event.meta)}</p>
             </div>
           </div>
           <a class="map-btn" href="${escapeHtml(event.map)}" target="_blank" rel="noopener">
@@ -1260,7 +1261,7 @@
               <button class="small-btn itinerary-detail-btn"
                 data-name="${escapeHtml(event.name)}"
                 data-number="${escapeHtml(event.number)}"
-                data-time="${formatEventTime(event.time)}"
+                data-time="${escapeHtml(event.time)}"
                 data-station="${escapeHtml(event.station)}"
                 data-menu="${escapeHtml(event.menu)}"
                 data-budget="${escapeHtml(event.budget)}"
@@ -1367,7 +1368,7 @@
       return [
         `台湾2026｜${data.subtitle}`,
         '',
-        ...data.events.map(event => `${formatEventTime(event.time)}　${event.name}（${event.meta}）`)
+        ...data.events.map(event => `${event.time}　${event.name}（${event.meta}）`)
       ].join('\n');
     }
 
@@ -1441,7 +1442,7 @@
     function itinerarySummary(day){
       const data = itineraryData[day];
       if(!data) return 'その日の旅程は登録されていません。';
-      return data.events.map(event => `${formatEventTime(event.time)}　${event.name}`).join('\n');
+      return data.events.map(event => `${event.time}　${event.name}`).join('\n');
     }
 
     function answerTravelQuestion(question){
@@ -1473,13 +1474,13 @@
       if(q.includes('食事') || q.includes('ご飯') || q.includes('食べ') || q.includes('レストラン')){
         const foods = data.events.filter(event => event.type === 'food');
         if(!foods.length) return `${meta.short}に食事予定は登録されていません。`;
-        return foods.map(event => `${formatEventTime(event.time)}　${event.name}`).join('\n');
+        return foods.map(event => `${event.time}　${event.name}`).join('\n');
       }
 
       if(q.includes('移動') || q.includes('電車') || q.includes('高鐵') || q.includes('台鐵') || q.includes('mrt')){
         const moves = data.events.filter(event => event.type === 'transport');
         if(!moves.length) return `${meta.short}に長距離移動は登録されていません。`;
-        return moves.map(event => `${formatEventTime(event.time)}　${event.name}\n${event.meta}`).join('\n\n');
+        return moves.map(event => `${event.time}　${event.name}\n${event.meta}`).join('\n\n');
       }
 
       if(q.includes('地図') || q.includes('場所') || q.includes('行き方')){
