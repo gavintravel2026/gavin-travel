@@ -181,7 +181,14 @@
       grid-column:1;
       padding-top:16px;
       font-size:18px;font-weight:850;color:var(--gold);
-      text-align:right;letter-spacing:0;white-space:nowrap
+      text-align:right;letter-spacing:0;
+      white-space:normal;
+      line-height:1.15;
+      overflow-wrap:anywhere;
+    }
+    .event-time .time-start,
+    .event-time .time-end{
+      display:block;
     }
     .event-card{
       grid-column:3;
@@ -545,7 +552,7 @@
       .timeline::before{left:60px}
       .event{grid-template-columns:49px 17px minmax(0,1fr);column-gap:5px}
       .event-dot{left:51px}
-      .event-time{font-size:17px;padding-right:0}
+      .event-time{font-size:17px;padding-right:0;line-height:1.12}
       .event-actions{grid-template-columns:minmax(0,1.25fr) minmax(78px,.8fr)}
     }
   </style>
@@ -1179,6 +1186,13 @@
       }[char]));
     }
 
+    function formatEventTime(value){
+      const safe = escapeHtml(value);
+      const match = String(value).match(/^\s*(\d{1,2}:\d{2})\s*[-–—〜~]\s*(\d{1,2}:\d{2})\s*$/);
+      if(!match) return safe;
+      return `<span class="time-start">${escapeHtml(match[1])}</span><span class="time-end">–${escapeHtml(match[2])}</span>`;
+    }
+
     function renderConciergeLabel(day){
       const meta = dayMeta[day];
       const label = document.getElementById('conciergeDayLabel');
@@ -1233,7 +1247,7 @@
         return `
         <article class="event" data-event-key="${day}-${eventIndex}">
           <span class="event-dot"></span>
-          <div class="event-time">${escapeHtml(event.time)}</div>
+          <div class="event-time">${formatEventTime(event.time)}</div>
           <div class="event-card ${photo ? 'has-photo' : ''}">
             ${photo ? `<img class="event-photo" src="${escapeHtml(photo)}" alt="${escapeHtml(event.name)}" loading="lazy">` : ''}
             <h3>${escapeHtml(event.name)}</h3>
