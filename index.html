@@ -1382,20 +1382,41 @@
     renderGourmetCards();
 
   
-document.getElementById('openDayRoute')?.addEventListener('click',()=>{
-  const events=(itineraryData[currentSelectedDay]?.events)||[];
-  const urls=events
-    .filter(e=>['food','spot','hotel'].includes(e.type))
-    .map(e=>e.map)
+
+document.getElementById('openDayRoute')?.addEventListener('click', () => {
+  const events = (itineraryData[currentSelectedDay]?.events) || [];
+
+  const destinations = events
+    .filter(event => ['food', 'spot', 'hotel'].includes(event.type))
+    .map(event => event.name)
     .filter(Boolean);
 
-  if(!urls.length){
+  if (!destinations.length) {
     alert('目的地がありません');
     return;
   }
 
-  urls.forEach((u,i)=>setTimeout(()=>window.open(u,'_blank'),i*300));
+  if (destinations.length === 1) {
+    const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destinations[0])}`;
+    window.open(url, '_blank', 'noopener');
+    return;
+  }
+
+  const origin = encodeURIComponent(destinations[0]);
+  const destination = encodeURIComponent(destinations[destinations.length - 1]);
+  const waypoints = destinations
+    .slice(1, -1)
+    .map(name => encodeURIComponent(name))
+    .join('|');
+
+  let url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}`;
+  if (waypoints) {
+    url += `&waypoints=${waypoints}`;
+  }
+
+  window.open(url, '_blank', 'noopener');
 });
+
 
 </script>
 </body>
