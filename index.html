@@ -451,6 +451,58 @@
     }
     .stat-chip strong{color:var(--gold)}
 
+
+    .chat-shell{
+      background:linear-gradient(180deg,var(--card2),var(--card));
+      border:1px solid rgba(255,255,255,.07);
+      border-radius:24px;padding:14px;
+      min-height:62vh;display:flex;flex-direction:column
+    }
+    .chat-history{
+      flex:1;overflow-y:auto;padding:4px 2px 10px;
+      min-height:330px;max-height:56vh
+    }
+    .chat-message{
+      max-width:88%;padding:12px 14px;border-radius:17px;
+      margin:8px 0;font-size:16px;line-height:1.55;white-space:pre-wrap
+    }
+    .chat-message.assistant{
+      background:#162d24;color:var(--text);
+      border-bottom-left-radius:6px
+    }
+    .chat-message.user{
+      margin-left:auto;background:var(--gold);color:#142018;
+      border-bottom-right-radius:6px;font-weight:700
+    }
+    .chat-suggestions{
+      display:flex;gap:8px;overflow-x:auto;padding:6px 0 10px;
+      scrollbar-width:none
+    }
+    .chat-suggestions::-webkit-scrollbar{display:none}
+    .chat-suggestion{
+      flex:0 0 auto;min-height:40px;padding:0 13px;border-radius:999px;
+      border:1px solid rgba(241,195,108,.24);
+      background:rgba(241,195,108,.1);color:var(--gold);
+      font-size:14px;font-weight:850
+    }
+    .chat-input-row{
+      display:grid;grid-template-columns:48px minmax(0,1fr) 68px;
+      gap:8px;align-items:end
+    }
+    .chat-input-row textarea{
+      width:100%;min-height:48px;max-height:120px;resize:none;
+      border-radius:15px;border:1px solid rgba(255,255,255,.09);
+      background:#0d2119;color:var(--text);padding:12px 13px;
+      font-size:16px;line-height:1.45;outline:none
+    }
+    .chat-input-row textarea:focus{border-color:rgba(241,195,108,.52)}
+    .chat-mic,.chat-send{
+      min-height:48px;border-radius:15px;border:0;font-weight:900
+    }
+    .chat-mic{background:#173027;color:var(--text);font-size:21px}
+    .chat-send{background:var(--gold);color:#142018;font-size:15px}
+    .chat-status{min-height:20px;padding-top:6px;text-align:center;color:var(--muted);font-size:13px}
+
     .placeholder{
       min-height:60vh;display:grid;place-items:center;text-align:center;color:var(--muted)
     }
@@ -638,24 +690,29 @@
     </section>
     <section class="screen" id="concierge">
       <p class="eyebrow">台湾2026</p>
-      <h1 class="page-title">相談</h1>
-      <p class="sub">選択中の日程をもとに、すぐ確認できます。</p>
+      <h1 class="page-title">コンシェルジュ</h1>
+      <p class="sub" id="conciergeDayLabel">選択中の日程を参照して回答します。</p>
 
-      <div class="concierge-head">
-        <h2>Gavin Concierge</h2>
-        <p id="conciergeDayLabel">8月7日の旅程を参照中</p>
-      </div>
+      <div class="chat-shell">
+        <div class="chat-history" id="chatHistory" aria-live="polite">
+          <div class="chat-message assistant">
+            こんにちは。旅程やグルメについて質問してください。
+          </div>
+        </div>
 
-      <div class="quick-grid">
-        <button class="quick-btn" data-question="next"><span>→</span>次の予定は？</button>
-        <button class="quick-btn" data-question="food"><span>🍜</span>食事だけ見る</button>
-        <button class="quick-btn" data-question="transport"><span>🚄</span>移動だけ見る</button>
-        <button class="quick-btn" data-question="hotel"><span>🏨</span>ホテルを確認</button>
-      </div>
+        <div class="chat-suggestions">
+          <button type="button" class="chat-suggestion" data-chat-question="次の予定は？">次の予定</button>
+          <button type="button" class="chat-suggestion" data-chat-question="今日の食事予定は？">食事予定</button>
+          <button type="button" class="chat-suggestion" data-chat-question="今日のホテルは？">ホテル</button>
+          <button type="button" class="chat-suggestion" data-chat-question="今日の移動予定は？">移動予定</button>
+        </div>
 
-      <div class="answer-card" id="conciergeAnswer">
-        <h3 id="conciergeAnswerTitle"></h3>
-        <p id="conciergeAnswerText"></p>
+        <div class="chat-input-row">
+          <button type="button" class="chat-mic" id="chatMicBtn" aria-label="音声入力">🎤</button>
+          <textarea id="chatInput" rows="1" placeholder="例：8月10日の夜ご飯は？"></textarea>
+          <button type="button" class="chat-send" id="chatSendBtn">送信</button>
+        </div>
+        <div class="chat-status" id="chatStatus"></div>
       </div>
 
       <div class="tools-card">
@@ -1284,61 +1341,183 @@
       }
     });
 
-    // Concierge
-    const conciergeAnswer = document.getElementById('conciergeAnswer');
-    const conciergeAnswerTitle = document.getElementById('conciergeAnswerTitle');
-    const conciergeAnswerText = document.getElementById('conciergeAnswerText');
 
-    function renderConciergeLabel(day){
-      const meta = dayMeta[day];
-      if(meta) document.getElementById('conciergeDayLabel').textContent = `${meta.short}の旅程を参照中`;
+    // Local concierge answer logic
+    const chatHistory = document.getElementById('chatHistory');
+    const chatInput = document.getElementById('chatInput');
+    const chatSendBtn = document.getElementById('chatSendBtn');
+    const chatMicBtn = document.getElementById('chatMicBtn');
+    const chatStatus = document.getElementById('chatStatus');
+
+    function addChatMessage(text, role='assistant'){
+      if(!chatHistory) return;
+      const message = document.createElement('div');
+      message.className = `chat-message ${role}`;
+      message.textContent = text;
+      chatHistory.appendChild(message);
+      chatHistory.scrollTop = chatHistory.scrollHeight;
     }
 
-    function showConciergeAnswer(title,text){
-      conciergeAnswerTitle.textContent = title;
-      conciergeAnswerText.innerHTML = text;
-      conciergeAnswer.classList.add('show');
+    function normalizeQuestion(text){
+      return String(text || '')
+        .toLowerCase()
+        .replace(/[　\s]/g,'')
+        .replace(/[？?。！!]/g,'');
     }
 
-    document.querySelectorAll('.quick-btn').forEach(button => {
-      button.addEventListener('click', () => {
-        const data = itineraryData[currentSelectedDay];
-        const meta = dayMeta[currentSelectedDay];
-        if(!data) return;
+    function extractDayFromQuestion(text){
+      const match = String(text).match(/(?:8月|8\/)?(6|7|8|9|10|11|12)日?/);
+      return match ? match[1] : currentSelectedDay;
+    }
 
-        if(button.dataset.question === 'next'){
-          const next = pickNextEvent(currentSelectedDay);
-          showConciergeAnswer('次の予定', next
-            ? `<strong>${escapeHtml(next.time)}　${escapeHtml(next.name)}</strong><br>${escapeHtml(next.meta)}`
-            : '予定はありません。');
-        }
-
-        if(button.dataset.question === 'food'){
-          const foods = data.events.filter(event => event.type === 'food');
-          showConciergeAnswer('食事の予定', foods.length
-            ? foods.map(event => `<strong>${escapeHtml(event.time)}</strong>　${escapeHtml(event.name)}`).join('<br>')
-            : `${meta.short}には食事予定が登録されていません。`);
-        }
-
-        if(button.dataset.question === 'transport'){
-          const moves = data.events.filter(event => event.type === 'transport');
-          showConciergeAnswer('移動の予定', moves.length
-            ? moves.map(event => `<strong>${escapeHtml(event.time)}</strong>　${escapeHtml(event.name)}<br>${escapeHtml(event.meta)}`).join('<br><br>')
-            : `${meta.short}には長距離移動が登録されていません。`);
-        }
-
-        if(button.dataset.question === 'hotel'){
-          showConciergeAnswer('ホテル', `<strong>${escapeHtml(dayMeta[currentSelectedDay].hotel)}</strong><br>${dayMeta[currentSelectedDay].hotelMeta}`);
-        }
+    function findGourmetItem(query){
+      const normalized = normalizeQuestion(query);
+      return gourmetData.find(item => {
+        const haystack = normalizeQuestion([
+          item.id,item.name,item.region,item.category,
+          ...(item.tags || []),...(item.menu || [])
+        ].join(' '));
+        return normalized.includes(normalizeQuestion(item.id)) ||
+               normalized.includes(normalizeQuestion(item.name)) ||
+               haystack.includes(normalized);
       });
+    }
+
+    function itinerarySummary(day){
+      const data = itineraryData[day];
+      if(!data) return 'その日の旅程は登録されていません。';
+      return data.events.map(event => `${event.time}　${event.name}`).join('\n');
+    }
+
+    function answerTravelQuestion(question){
+      const q = normalizeQuestion(question);
+      const day = extractDayFromQuestion(question);
+      const data = itineraryData[day];
+      const meta = dayMeta[day];
+
+      if(!data) return 'その日の旅程は登録されていません。';
+
+      const gourmet = findGourmetItem(question);
+      if(gourmet && (
+        q.includes('t') || q.includes('おすすめ') || q.includes('メニュー') ||
+        q.includes('何食べ') || q.includes('どんな店') || q.includes('って')
+      )){
+        return `${gourmet.id} ${gourmet.name}\n${gourmet.region}・${gourmet.category}\nおすすめ：${gourmet.menu.join('、')}`;
+      }
+
+      if(q.includes('次') || q.includes('今どこ') || q.includes('次どこ')){
+        const next = pickNextEvent(day);
+        if(!next) return `${meta.short}の予定はありません。`;
+        return `次の予定は ${next.time}「${next.name}」です。\n${next.meta}`;
+      }
+
+      if(q.includes('ホテル') || q.includes('宿')){
+        return `${meta.short}のホテルは「${meta.hotel}」です。\n${meta.hotelMeta.replace(/<br>/g,'、')}`;
+      }
+
+      if(q.includes('食事') || q.includes('ご飯') || q.includes('食べ') || q.includes('レストラン')){
+        const foods = data.events.filter(event => event.type === 'food');
+        if(!foods.length) return `${meta.short}に食事予定は登録されていません。`;
+        return foods.map(event => `${event.time}　${event.name}`).join('\n');
+      }
+
+      if(q.includes('移動') || q.includes('電車') || q.includes('高鐵') || q.includes('台鐵') || q.includes('mrt')){
+        const moves = data.events.filter(event => event.type === 'transport');
+        if(!moves.length) return `${meta.short}に長距離移動は登録されていません。`;
+        return moves.map(event => `${event.time}　${event.name}\n${event.meta}`).join('\n\n');
+      }
+
+      if(q.includes('地図') || q.includes('場所') || q.includes('行き方')){
+        const next = pickNextEvent(day);
+        return next
+          ? `${next.name}をGoogleマップで開けます。\n地図画面または旅程のGoogleマップボタンを押してください。`
+          : '案内できる目的地がありません。';
+      }
+
+      if(q.includes('予定') || q.includes('日程') || /8(?:月|\/)?(?:6|7|8|9|10|11|12)/.test(question)){
+        return `${data.subtitle}\n${itinerarySummary(day)}`;
+      }
+
+      if(gourmet){
+        return `${gourmet.id} ${gourmet.name}\n${gourmet.region}・${gourmet.category}\nおすすめ：${gourmet.menu.join('、')}`;
+      }
+
+      return `旅程・ホテル・食事・移動・T番号について質問できます。\n例：「8月10日の夜ご飯は？」「T125のおすすめは？」`;
+    }
+
+    function sendChatQuestion(prefilled){
+      const question = (prefilled ?? chatInput?.value ?? '').trim();
+      if(!question) return;
+      addChatMessage(question,'user');
+      if(chatInput) chatInput.value = '';
+      if(chatStatus) chatStatus.textContent = '回答を作成中…';
+
+      setTimeout(() => {
+        addChatMessage(answerTravelQuestion(question),'assistant');
+        if(chatStatus) chatStatus.textContent = '';
+      },250);
+    }
+
+    chatSendBtn?.addEventListener('click', () => sendChatQuestion());
+    chatInput?.addEventListener('keydown', event => {
+      if(event.key === 'Enter' && !event.shiftKey){
+        event.preventDefault();
+        sendChatQuestion();
+      }
     });
+
+    document.querySelectorAll('.chat-suggestion').forEach(button => {
+      button.addEventListener('click', () => sendChatQuestion(button.dataset.chatQuestion));
+    });
+
+    chatInput?.addEventListener('input', () => {
+      chatInput.style.height = 'auto';
+      chatInput.style.height = `${Math.min(chatInput.scrollHeight,120)}px`;
+    });
+
+    if(chatMicBtn){
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if(SpeechRecognition){
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'ja-JP';
+        recognition.interimResults = false;
+        recognition.continuous = false;
+
+        chatMicBtn.addEventListener('click', () => {
+          try{
+            if(chatStatus) chatStatus.textContent = '音声を聞いています…';
+            recognition.start();
+          }catch(error){}
+        });
+
+        recognition.onresult = event => {
+          const text = event.results?.[0]?.[0]?.transcript || '';
+          if(chatInput) chatInput.value = text;
+          if(chatStatus) chatStatus.textContent = '';
+          if(text) sendChatQuestion(text);
+        };
+
+        recognition.onerror = () => {
+          if(chatStatus) chatStatus.textContent = '音声入力を利用できませんでした。';
+        };
+
+        recognition.onend = () => {
+          if(chatStatus?.textContent === '音声を聞いています…') chatStatus.textContent = '';
+        };
+      }else{
+        chatMicBtn.addEventListener('click', () => {
+          if(chatStatus) chatStatus.textContent = 'このブラウザでは音声入力に対応していません。';
+        });
+      }
+    }
+
 
     // Backup / restore favorites and notes
     const dataToolStatus = document.getElementById('dataToolStatus');
     document.getElementById('exportDataBtn')?.addEventListener('click', () => {
       const payload = {
         app:'Gavin Travel',
-        version:'2.0',
+        version:'2.0.4',
         exportedAt:new Date().toISOString(),
         selectedDay:currentSelectedDay,
         favorites:[...favoriteFoods],
