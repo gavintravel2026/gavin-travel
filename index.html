@@ -527,6 +527,58 @@
     .chat-send{background:var(--gold);color:#142018;font-size:15px}
     .chat-status{min-height:20px;padding-top:6px;text-align:center;color:var(--muted);font-size:13px}
 
+
+    .focus-open-btn{
+      width:100%;min-height:50px;margin-top:10px;border-radius:16px;
+      border:1px solid rgba(255,255,255,.12);
+      background:rgba(6,17,14,.74);color:var(--text);
+      font-size:16px;font-weight:900
+    }
+    .focus-modal{
+      position:fixed;inset:0;z-index:200;
+      display:none;background:
+        radial-gradient(circle at 20% 0%,rgba(241,195,108,.14),transparent 30%),
+        linear-gradient(180deg,#091711,#06110e);
+      padding:calc(env(safe-area-inset-top) + 20px) 18px calc(env(safe-area-inset-bottom) + 22px);
+    }
+    .focus-modal.open{display:flex;flex-direction:column}
+    .focus-top{
+      display:flex;justify-content:space-between;align-items:center;margin-bottom:24px
+    }
+    .focus-label{color:var(--gold);font-size:15px;font-weight:900;letter-spacing:.08em}
+    .focus-close{
+      width:46px;height:46px;border-radius:50%;border:0;
+      background:#173027;color:var(--text);font-size:24px
+    }
+    .focus-body{
+      flex:1;display:flex;flex-direction:column;justify-content:center;
+      text-align:center;padding:20px 4px
+    }
+    .focus-countdown{
+      min-height:26px;margin-bottom:18px;color:var(--muted);
+      font-size:17px;font-weight:800
+    }
+    .focus-time{
+      color:var(--gold);font-size:72px;line-height:1;font-weight:950;
+      letter-spacing:-.055em;margin-bottom:18px
+    }
+    .focus-name{
+      font-size:36px;line-height:1.22;font-weight:900;margin-bottom:14px
+    }
+    .focus-meta{
+      color:#dce4df;font-size:20px;line-height:1.5;margin-bottom:26px
+    }
+    .focus-actions{display:grid;gap:12px}
+    .focus-map{
+      min-height:64px;border-radius:18px;display:flex;align-items:center;justify-content:center;
+      background:linear-gradient(180deg,#f7d894,#e2b353);
+      color:#142018;font-size:19px;font-weight:900
+    }
+    .focus-secondary{
+      min-height:54px;border-radius:17px;border:1px solid rgba(255,255,255,.09);
+      background:#162d24;color:var(--text);font-size:16px;font-weight:900
+    }
+
     .placeholder{
       min-height:60vh;display:grid;place-items:center;text-align:center;color:var(--muted)
     }
@@ -585,6 +637,7 @@
              href="https://www.google.com/maps/search/?api=1&query=%E6%9D%AD%E5%B7%9E%E5%B0%8F%E7%B1%A0%E6%B9%AF%E5%8C%85%20%E5%8F%B0%E5%8C%97">
              📍 Googleマップで開く
           </a>
+          <button class="focus-open-btn" id="openFocusMode" type="button">次の予定を大きく表示</button>
         </div>
       </div>
 
@@ -822,6 +875,24 @@
       </div>
 
       <a class="map-btn modal-map" id="modalMap" target="_blank" rel="noopener">📍 Googleマップで開く</a>
+    </div>
+  </div>
+
+
+  <div class="focus-modal" id="focusModal" aria-hidden="true">
+    <div class="focus-top">
+      <div class="focus-label">NEXT PLAN</div>
+      <button class="focus-close" id="closeFocusMode" type="button" aria-label="閉じる">×</button>
+    </div>
+    <div class="focus-body">
+      <div class="focus-countdown" id="focusCountdown"></div>
+      <div class="focus-time" id="focusTime">11:00</div>
+      <div class="focus-name" id="focusName">杭州小籠湯包</div>
+      <div class="focus-meta" id="focusMeta">東門駅・徒歩8分</div>
+      <div class="focus-actions">
+        <a class="focus-map" id="focusMap" target="_blank" rel="noopener">📍 Googleマップで開く</a>
+        <button class="focus-secondary" id="focusRefresh" type="button">最新の予定に更新</button>
+      </div>
     </div>
   </div>
 
@@ -1715,6 +1786,73 @@
           : '現在地を取得済みです。次の予定はありません。';
       }
     };
+
+
+    // Next-plan focus mode
+    const focusModal = document.getElementById('focusModal');
+    const focusTime = document.getElementById('focusTime');
+    const focusName = document.getElementById('focusName');
+    const focusMeta = document.getElementById('focusMeta');
+    const focusMap = document.getElementById('focusMap');
+    const focusCountdown = document.getElementById('focusCountdown');
+
+    function focusCountdownText(event){
+      const minutes = timeToMinutes(event?.time || '');
+      if(minutes === null) return '';
+
+      const now = new Date();
+      const selectedDate = Number(currentSelectedDay);
+      const isTripDate =
+        now.getFullYear() === 2026 &&
+        now.getMonth() === 7 &&
+        now.getDate() === selectedDate;
+
+      if(!isTripDate) return `${dayMeta[currentSelectedDay]?.short || ''}の予定`;
+
+      const diff = minutes - (now.getHours() * 60 + now.getMinutes());
+      if(diff > 0) return `予定まであと ${diff}分`;
+      if(diff === 0) return '予定時刻です';
+      return `予定時刻から ${Math.abs(diff)}分経過`;
+    }
+
+    function renderFocusMode(){
+      const next = pickNextEvent(currentSelectedDay);
+      if(!next){
+        focusTime.textContent = '—';
+        focusName.textContent = '次の予定はありません';
+        focusMeta.textContent = '';
+        focusCountdown.textContent = '';
+        focusMap.style.display = 'none';
+        return;
+      }
+
+      focusTime.textContent = next.time;
+      focusName.textContent = next.name;
+      focusMeta.textContent = next.meta;
+      focusCountdown.textContent = focusCountdownText(next);
+      focusMap.href = next.map || next.primaryUrl || '#';
+      focusMap.style.display = (next.map || next.primaryUrl) ? 'flex' : 'none';
+    }
+
+    document.getElementById('openFocusMode')?.addEventListener('click', () => {
+      renderFocusMode();
+      focusModal.classList.add('open');
+      focusModal.setAttribute('aria-hidden','false');
+      document.body.style.overflow = 'hidden';
+    });
+
+    function closeFocusMode(){
+      focusModal.classList.remove('open');
+      focusModal.setAttribute('aria-hidden','true');
+      document.body.style.overflow = '';
+    }
+
+    document.getElementById('closeFocusMode')?.addEventListener('click', closeFocusMode);
+    document.getElementById('focusRefresh')?.addEventListener('click', renderFocusMode);
+
+    setInterval(() => {
+      if(focusModal?.classList.contains('open')) renderFocusMode();
+    }, 60000);
 
 </script>
 </body>
