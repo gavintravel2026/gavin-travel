@@ -352,6 +352,91 @@
       background:var(--card);border-radius:22px
     }
 
+
+    /* v1.5 functional additions */
+    .online-state{
+      display:inline-flex;align-items:center;gap:7px;
+      font-size:13px;color:var(--muted)
+    }
+    .online-dot{width:9px;height:9px;border-radius:50%;background:#72d39b;box-shadow:0 0 0 4px rgba(114,211,155,.12)}
+    .online-state.offline .online-dot{background:#e2b353;box-shadow:0 0 0 4px rgba(226,179,83,.12)}
+    .favorite-btn{
+      position:absolute;right:14px;top:14px;z-index:3;
+      width:44px;height:44px;border-radius:50%;border:1px solid rgba(255,255,255,.13);
+      display:grid;place-items:center;background:rgba(5,14,11,.76);
+      color:#f5e9cf;font-size:24px;backdrop-filter:blur(8px)
+    }
+    .favorite-btn.active{background:var(--gold);color:#142018}
+    .food-photo .food-number{right:auto}
+    .today-badge{
+      display:inline-flex;align-items:center;gap:6px;
+      padding:7px 10px;border-radius:999px;background:rgba(114,211,155,.12);
+      color:#9ce4b9;font-size:13px;font-weight:850
+    }
+    .route-btn{
+      width:100%;min-height:56px;margin-bottom:14px;border-radius:17px;border:1px solid var(--line);
+      background:rgba(241,195,108,.12);color:var(--gold);
+      font-size:17px;font-weight:900
+    }
+    .note-editor{
+      width:100%;min-height:105px;resize:vertical;
+      padding:14px;border-radius:16px;border:1px solid rgba(255,255,255,.09);
+      background:#0d2119;color:var(--text);font-size:16px;line-height:1.55;
+      outline:none
+    }
+    .note-editor:focus{border-color:rgba(241,195,108,.52)}
+    .save-note{
+      width:100%;min-height:50px;margin-top:10px;border:0;border-radius:15px;
+      background:var(--gold);color:#142018;font-size:16px;font-weight:900
+    }
+    .saved-message{min-height:20px;margin-top:7px;color:#9ce4b9;font-size:13px;text-align:center}
+    .concierge-head{
+      padding:20px;border-radius:26px;
+      background:linear-gradient(135deg,rgba(241,195,108,.17),rgba(13,31,25,.97));
+      border:1px solid rgba(241,195,108,.23);margin-bottom:18px
+    }
+    .concierge-head h2{font-size:28px;margin:0 0 8px}
+    .concierge-head p{font-size:16px;color:var(--muted);line-height:1.55;margin:0}
+    .quick-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .quick-btn{
+      min-height:78px;padding:13px;border-radius:18px;text-align:left;
+      border:1px solid rgba(255,255,255,.07);background:var(--card);
+      color:var(--text);font-size:15px;font-weight:850;line-height:1.35
+    }
+    .quick-btn span{display:block;color:var(--gold);font-size:21px;margin-bottom:6px}
+    .answer-card{
+      margin-top:16px;padding:18px;border-radius:22px;background:var(--card);
+      border:1px solid rgba(255,255,255,.07);display:none
+    }
+    .answer-card.show{display:block}
+    .answer-card h3{font-size:20px;margin:0 0 8px;color:var(--gold)}
+    .answer-card p{font-size:16px;line-height:1.65;margin:0;color:#dce4df}
+    .tools-card{
+      margin-top:18px;padding:18px;border-radius:22px;background:var(--card);
+      border:1px solid rgba(255,255,255,.07)
+    }
+    .tools-card h3{font-size:20px;margin:0 0 12px}
+    .tool-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .tool-btn{
+      min-height:52px;border-radius:15px;border:1px solid rgba(255,255,255,.08);
+      background:#162d24;color:var(--text);font-size:15px;font-weight:850
+    }
+    .tool-btn.primary{background:var(--gold);color:#142018}
+    .tool-status{min-height:20px;margin-top:9px;color:var(--muted);font-size:13px;text-align:center}
+    .import-input{display:none}
+    .home-tools{display:flex;gap:10px;margin-top:12px}
+    .home-tool{
+      flex:1;min-height:48px;border-radius:15px;border:1px solid rgba(255,255,255,.07);
+      background:#142a21;color:var(--text);font-size:14px;font-weight:850
+    }
+    .home-tool.primary{background:var(--gold);color:#142018}
+    .food-stats{display:flex;gap:9px;flex-wrap:wrap;margin:10px 0 4px}
+    .stat-chip{
+      padding:8px 11px;border-radius:999px;background:var(--card);
+      border:1px solid rgba(255,255,255,.07);color:var(--muted);font-size:13px
+    }
+    .stat-chip strong{color:var(--gold)}
+
     .placeholder{
       min-height:60vh;display:grid;place-items:center;text-align:center;color:var(--muted)
     }
@@ -390,7 +475,7 @@
 <body>
   <main class="app">
     <header class="topbar">
-      <div class="brand">GAVIN TRAVEL</div>
+      <div><div class="brand">GAVIN TRAVEL</div><div class="online-state" id="onlineState"><span class="online-dot"></span><span id="onlineText">オンライン</span></div></div>
       <div class="avatar">G</div>
     </header>
 
@@ -449,6 +534,13 @@
       </section>
 
       <section class="section">
+        <div class="home-tools">
+          <button class="home-tool primary" id="shareDayBtn">この日の予定を共有</button>
+          <button class="home-tool" id="copyDayBtn">予定をコピー</button>
+        </div>
+      </section>
+
+      <section class="section">
         <div class="weather">
           <div class="weather-left">
             <div class="weather-icon">☀️</div>
@@ -494,6 +586,11 @@
         <input id="foodSearch" type="search" placeholder="店名・料理・T番号で検索" autocomplete="off">
       </label>
 
+      <div class="food-stats">
+        <span class="stat-chip">表示 <strong id="visibleFoodCount">0</strong>件</span>
+        <span class="stat-chip">お気に入り <strong id="favoriteFoodCount">0</strong>件</span>
+      </div>
+
       <div class="filter-row" aria-label="地域フィルター">
         <button class="filter-btn active" data-filter="all">すべて</button>
         <button class="filter-btn" data-filter="台北">台北</button>
@@ -501,6 +598,7 @@
         <button class="filter-btn" data-filter="台南">台南</button>
         <button class="filter-btn" data-filter="宜蘭">宜蘭</button>
         <button class="filter-btn" data-filter="彰化">彰化</button>
+        <button class="filter-btn" data-filter="favorites">★ お気に入り</button>
       </div>
 
       <div class="food-list" id="foodList">
@@ -672,10 +770,40 @@
         <span id="mapDayCount">0件</span>
       </div>
 
+      <button class="route-btn" id="openDayRoute">この日の目的地をまとめてGoogleマップで開く</button>
       <div class="map-list" id="mapList"></div>
     </section>
     <section class="screen" id="concierge">
-      <div class="placeholder"><div><strong>Gavin Concierge</strong>相談画面を追加予定です。</div></div>
+      <p class="eyebrow">台湾2026</p>
+      <h1 class="page-title">相談</h1>
+      <p class="sub">選択中の日程をもとに、すぐ確認できます。</p>
+
+      <div class="concierge-head">
+        <h2>Gavin Concierge</h2>
+        <p id="conciergeDayLabel">8月7日の旅程を参照中</p>
+      </div>
+
+      <div class="quick-grid">
+        <button class="quick-btn" data-question="next"><span>→</span>次の予定は？</button>
+        <button class="quick-btn" data-question="food"><span>🍜</span>食事だけ見る</button>
+        <button class="quick-btn" data-question="transport"><span>🚄</span>移動だけ見る</button>
+        <button class="quick-btn" data-question="hotel"><span>🏨</span>ホテルを確認</button>
+      </div>
+
+      <div class="answer-card" id="conciergeAnswer">
+        <h3 id="conciergeAnswerTitle"></h3>
+        <p id="conciergeAnswerText"></p>
+      </div>
+
+      <div class="tools-card">
+        <h3>旅行データ</h3>
+        <div class="tool-actions">
+          <button class="tool-btn primary" id="exportDataBtn">バックアップ保存</button>
+          <button class="tool-btn" id="importDataBtn">バックアップ読込</button>
+        </div>
+        <input class="import-input" id="importDataInput" type="file" accept="application/json">
+        <div class="tool-status" id="dataToolStatus">お気に入りとメモを端末内に保存しています。</div>
+      </div>
     </section>
   </main>
 
@@ -702,8 +830,14 @@
         <div class="menu-list" id="itineraryModalMenu"></div>
       </div>
       <div class="detail-section">
-        <h3>メモ</h3>
+        <h3>旅程メモ</h3>
         <div class="detail-note" id="itineraryModalNote"></div>
+      </div>
+      <div class="detail-section">
+        <h3>自分のメモ</h3>
+        <textarea class="note-editor" id="itineraryUserNote" placeholder="現地で確認したいことなど"></textarea>
+        <button class="save-note" id="saveItineraryNote">メモを保存</button>
+        <div class="saved-message" id="noteSavedMessage"></div>
       </div>
       <a class="map-btn modal-map" id="itineraryModalMap" target="_blank" rel="noopener">📍 Googleマップで開く</a>
     </div>
@@ -776,13 +910,19 @@
       let visibleCount = 0;
 
       foodCards.forEach(card => {
-        const regionMatch = activeFilter === 'all' || card.dataset.region === activeFilter;
+        const foodId = card.querySelector('.food-number')?.textContent.trim() || card.dataset.search;
+        const regionMatch =
+          activeFilter === 'all' ||
+          card.dataset.region === activeFilter ||
+          (activeFilter === 'favorites' && favoriteFoods.has(foodId));
         const keywordMatch = !keyword || card.dataset.search.toLowerCase().includes(keyword);
         const visible = regionMatch && keywordMatch;
         card.style.display = visible ? '' : 'none';
         if(visible) visibleCount++;
       });
 
+      document.getElementById('visibleFoodCount').textContent = visibleCount;
+      document.getElementById('favoriteFoodCount').textContent = favoriteFoods.size;
       if(emptyResult) emptyResult.style.display = visibleCount ? 'none' : 'block';
     }
 
@@ -838,6 +978,30 @@
 
 
     const itineraryData = {"6": {"subtitle": "8月6日（木）・名古屋 → 台北", "events": [{"time": "22:50", "name": "中部国際空港 → 桃園", "meta": "MM723・Peach", "type": "transport", "primary": "運航情報", "primaryUrl": "https://www.flypeach.com/", "number": "移動", "station": "中部国際空港から桃園国際空港", "menu": "MM723|夜便", "budget": "航空券確認", "note": "到着後は深夜バスで台北駅へ。", "map": "https://www.google.com/maps/search/?api=1&query=Taiwan+Taoyuan+International+Airport"}, {"time": "01:10", "name": "桃園国際空港 到着", "meta": "入国・荷物受取", "type": "transport", "primary": "空港案内", "primaryUrl": "https://www.taoyuan-airport.com/", "number": "移動", "station": "桃園国際空港", "menu": "入国審査|荷物受取", "budget": "—", "note": "深夜バス1819または1961で台北駅へ。", "map": "https://www.google.com/maps/search/?api=1&query=Taiwan+Taoyuan+International+Airport"}, {"time": "深夜", "name": "NYS Loft Hotel", "meta": "台北駅周辺・チェックイン", "type": "hotel", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=NYS+Loft+Hotel+Taipei", "number": "ホテル", "station": "台北駅周辺", "menu": "チェックイン|休憩", "budget": "予約済み", "note": "8月7日深夜の宿泊。", "map": "https://www.google.com/maps/search/?api=1&query=NYS+Loft+Hotel+Taipei"}]}, "7": {"subtitle": "8月7日（金）・台北 → 台中", "events": [{"time": "11:00", "name": "杭州小籠湯包", "meta": "東門駅・徒歩8分", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=%E6%9D%AD%E5%B7%9E%E5%B0%8F%E7%B1%A0%E6%B9%AF%E5%8C%85%20%E5%8F%B0%E5%8C%97", "number": "T112", "station": "東門駅（R・O）・徒歩8分", "menu": "小籠湯包|蝦仁燒賣|酸辣湯", "budget": "約300～500 TWD", "note": "8月7日の昼食予定。", "map": "https://www.google.com/maps/search/?api=1&query=%E6%9D%AD%E5%B7%9E%E5%B0%8F%E7%B1%A0%E6%B9%AF%E5%8C%85%20%E5%8F%B0%E5%8C%97"}, {"time": "14:30", "name": "劉山東牛肉麵", "meta": "台北駅・徒歩約6分", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=%E5%8A%89%E5%B1%B1%E6%9D%B1%E7%89%9B%E8%82%89%E9%BA%B5%20%E5%8F%B0%E5%8C%97", "number": "T120", "station": "台北駅・徒歩約6分", "menu": "紅燒牛肉麵|清燉牛肉麵|小菜", "budget": "約200～350 TWD", "note": "台北駅周辺の老舗牛肉麺店。", "map": "https://www.google.com/maps/search/?api=1&query=%E5%8A%89%E5%B1%B1%E6%9D%B1%E7%89%9B%E8%82%89%E9%BA%B5%20%E5%8F%B0%E5%8C%97"}, {"time": "16:00", "name": "古早味豆花", "meta": "民權西路駅・徒歩圏", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=%E5%8F%A4%E6%97%A9%E5%91%B3%E8%B1%86%E8%8A%B1%20%E5%8F%B0%E5%8C%97", "number": "T123", "station": "民權西路駅・徒歩圏", "menu": "豆花|粉圓|ピーナッツ", "budget": "約60～100 TWD", "note": "台中への移動前に立ち寄る甘味。", "map": "https://www.google.com/maps/search/?api=1&query=%E5%8F%A4%E6%97%A9%E5%91%B3%E8%B1%86%E8%8A%B1%20%E5%8F%B0%E5%8C%97"}, {"time": "17:30", "name": "台北 → 台中", "meta": "高鐵で移動", "type": "transport", "primary": "時刻表・予約", "primaryUrl": "https://www.thsrc.com.tw/", "number": "移動", "station": "高鐵・約1時間以内", "menu": "台北駅から高鐵で台中へ", "budget": "乗車券を確認", "note": "台中到着後、HiRiver Hotelへ移動。", "map": "https://www.google.com/maps/search/?api=1&query=%E5%8F%B0%E4%B8%AD%E9%AB%98%E9%90%B5%E7%AB%99"}, {"time": "19:00", "name": "沁園春", "meta": "予約済み・台中", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=%E6%B2%81%E5%9C%92%E6%98%A5%20%E5%8F%B0%E4%B8%AD", "number": "T206", "station": "台中・予約済み", "menu": "小籠包|寧波排骨|炒飯", "budget": "約500～900 TWD", "note": "8月7日19時に予約済み。", "map": "https://www.google.com/maps/search/?api=1&query=%E6%B2%81%E5%9C%92%E6%98%A5%20%E5%8F%B0%E4%B8%AD"}]}, "8": {"subtitle": "8月8日（土）・日月潭／彰化", "events": [{"time": "09:00", "name": "姉家族と合流", "meta": "彰化から日月潭へ", "type": "transport", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=Sun+Moon+Lake", "number": "移動", "station": "車で日月潭へ", "menu": "日月潭観光|家族と合流", "budget": "—", "note": "姉家族と車で移動。", "map": "https://www.google.com/maps/search/?api=1&query=Sun+Moon+Lake"}, {"time": "昼", "name": "日月潭", "meta": "散策・昼食", "type": "spot", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=Sun+Moon+Lake", "number": "観光", "station": "南投県・日月潭", "menu": "湖畔散策|昼食", "budget": "現地精算", "note": "暑さに合わせて無理なく観光。", "map": "https://www.google.com/maps/search/?api=1&query=Sun+Moon+Lake"}, {"time": "夜", "name": "妍·烤物", "meta": "彰化市・姉家族と夕食", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=%E5%A6%8D%20%E7%83%A4%E7%89%A9%20%E5%BD%B0%E5%8C%96", "number": "T501", "station": "彰化市", "menu": "焼き物|串焼き|一品料理", "budget": "現地確認", "note": "姉家族と夕食。", "map": "https://www.google.com/maps/search/?api=1&query=%E5%A6%8D%20%E7%83%A4%E7%89%A9%20%E5%BD%B0%E5%8C%96"}]}, "9": {"subtitle": "8月9日（日）・台中 → 台南", "events": [{"time": "08:00", "name": "第二市場 食べ歩き", "meta": "台中・朝食", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=Taichung+Second+Market", "number": "T201ほか", "station": "台中第二市場", "menu": "山河魯肉飯|王記菜頭粿糯米腸|顏記肉包|老賴茶棧", "budget": "約250～450 TWD", "note": "10時頃まで食べ歩き。", "map": "https://www.google.com/maps/search/?api=1&query=Taichung+Second+Market"}, {"time": "11:30", "name": "審計新村・草悟道", "meta": "散策", "type": "spot", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=Shenji+New+Village", "number": "観光", "station": "台中市西区", "menu": "審計新村|草悟道", "budget": "—", "note": "暑さに合わせて休憩を挟む。", "map": "https://www.google.com/maps/search/?api=1&query=Shenji+New+Village"}, {"time": "13:00", "name": "馨苑小料理", "meta": "台中・昼食", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=%E9%A6%A8%E8%8B%91%E5%B0%8F%E6%96%99%E7%90%86%20%E5%8F%B0%E4%B8%AD", "number": "T214", "station": "草悟道エリア", "menu": "台湾家庭料理|季節の小皿|ご飯料理", "budget": "約500～900 TWD", "note": "台南へ向かう前の昼食。", "map": "https://www.google.com/maps/search/?api=1&query=%E9%A6%A8%E8%8B%91%E5%B0%8F%E6%96%99%E7%90%86%20%E5%8F%B0%E4%B8%AD"}, {"time": "15:00", "name": "台中 → 台南", "meta": "高鐵で移動", "type": "transport", "primary": "時刻表・予約", "primaryUrl": "https://www.thsrc.com.tw/", "number": "移動", "station": "高鐵台中駅から台南へ", "menu": "高鐵移動", "budget": "乗車券確認", "note": "16時頃に台南到着予定。", "map": "https://www.google.com/maps/search/?api=1&query=THSR+Tainan+Station"}, {"time": "夕方", "name": "台南の友人と合流", "meta": "Nan Sing Hotel", "type": "hotel", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=Nan+Sing+Hotel+Tainan", "number": "予定", "station": "台南市", "menu": "チェックイン|友人と夕食", "budget": "予約済み", "note": "友人と夕食予定。", "map": "https://www.google.com/maps/search/?api=1&query=Nan+Sing+Hotel+Tainan"}]}, "10": {"subtitle": "8月10日（月）・台南 → 台北", "events": [{"time": "08:30", "name": "美香吉早餐店", "meta": "安平・朝食", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=%E7%BE%8E%E9%A6%99%E5%90%89%E6%97%A9%E9%A4%90%E5%BA%97%20%E5%8F%B0%E5%8D%97", "number": "T310", "station": "台南・安平", "menu": "台湾式朝食|蛋餅|豆漿", "budget": "約100～200 TWD", "note": "台南最終日の朝食。", "map": "https://www.google.com/maps/search/?api=1&query=%E7%BE%8E%E9%A6%99%E5%90%89%E6%97%A9%E9%A4%90%E5%BA%97%20%E5%8F%B0%E5%8D%97"}, {"time": "11:20", "name": "阿村牛肉湯", "meta": "台南・牛肉湯", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=%E9%98%BF%E6%9D%91%E7%89%9B%E8%82%89%E6%B9%AF%20%E5%8F%B0%E5%8D%97", "number": "台南", "station": "台南市", "menu": "牛肉湯|白飯|炒牛肉", "budget": "約200～400 TWD", "note": "台南で必食の牛肉湯。", "map": "https://www.google.com/maps/search/?api=1&query=%E9%98%BF%E6%9D%91%E7%89%9B%E8%82%89%E6%B9%AF%20%E5%8F%B0%E5%8D%97"}, {"time": "13:30", "name": "台南 → 台北", "meta": "高鐵で移動", "type": "transport", "primary": "時刻表・予約", "primaryUrl": "https://www.thsrc.com.tw/", "number": "移動", "station": "高鐵台南駅から台北へ", "menu": "高鐵移動", "budget": "乗車券確認", "note": "14時30分頃に台北到着予定。", "map": "https://www.google.com/maps/search/?api=1&query=Taipei+Main+Station"}, {"time": "18:00", "name": "阿城鵝肉", "meta": "台北・夕食", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=%E9%98%BF%E5%9F%8E%E9%B5%9D%E8%82%89%20%E5%8F%B0%E5%8C%97", "number": "T106", "station": "台北市中山区", "menu": "鵝肉|鵝油飯|小菜", "budget": "約300～600 TWD", "note": "台北に戻って夕食。", "map": "https://www.google.com/maps/search/?api=1&query=%E9%98%BF%E5%9F%8E%E9%B5%9D%E8%82%89%20%E5%8F%B0%E5%8C%97"}, {"time": "19:30", "name": "雙城街夜市", "meta": "夜市散策", "type": "spot", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=Shuangcheng+Street+Night+Market", "number": "夜市", "station": "台北市中山区", "menu": "夜市散策|軽食", "budget": "現地精算", "note": "夕食後に無理のない範囲で散策。", "map": "https://www.google.com/maps/search/?api=1&query=Shuangcheng+Street+Night+Market"}]}, "11": {"subtitle": "8月11日（火）・宜蘭／羅東 日帰り", "events": [{"time": "08:00", "name": "台北 → 礁溪", "meta": "台鐵 自強号", "type": "transport", "primary": "台鐵時刻表", "primaryUrl": "https://www.railway.gov.tw/", "number": "移動", "station": "台北駅から礁溪駅", "menu": "自強号|台鐵", "budget": "乗車券確認", "note": "時刻は最終確認が必要。", "map": "https://www.google.com/maps/search/?api=1&query=Jiaoxi+Station"}, {"time": "09:15", "name": "柯氏蔥油餅", "meta": "礁溪・食べ歩き", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=%E6%9F%AF%E6%B0%8F%E8%94%A5%E6%B2%B9%E9%A4%85%20%E7%A4%81%E6%BA%AA", "number": "T301", "station": "礁溪", "menu": "蔥油餅加蛋|辣醬", "budget": "約60～100 TWD", "note": "礁溪到着後の食べ歩き。", "map": "https://www.google.com/maps/search/?api=1&query=%E6%9F%AF%E6%B0%8F%E8%94%A5%E6%B2%B9%E9%A4%85%20%E7%A4%81%E6%BA%AA"}, {"time": "昼", "name": "南方澳 海鮮", "meta": "海珍活海鮮 第一候補", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=%E6%B5%B7%E7%8F%8D%E6%B4%BB%E6%B5%B7%E9%AE%AE%20%E5%8D%97%E6%96%B9%E6%BE%B3", "number": "T304", "station": "南方澳", "menu": "海鮮料理|魚料理|炒飯", "budget": "約600～1,200 TWD", "note": "営業状況により富美・味珍へ変更。", "map": "https://www.google.com/maps/search/?api=1&query=%E6%B5%B7%E7%8F%8D%E6%B4%BB%E6%B5%B7%E9%AE%AE%20%E5%8D%97%E6%96%B9%E6%BE%B3"}, {"time": "夕方", "name": "羅東夜市", "meta": "食べ歩き", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=Luodong+Night+Market", "number": "T307ほか", "station": "羅東駅周辺", "menu": "阿灶伯當歸羊肉湯|義豐蔥油派|包心粉圓", "budget": "約250～500 TWD", "note": "20～21時頃に台北へ戻る予定。", "map": "https://www.google.com/maps/search/?api=1&query=Luodong+Night+Market"}]}, "12": {"subtitle": "8月12日（水）・台北 最終日", "events": [{"time": "11:00", "name": "雙月食品社", "meta": "台北・昼食", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=%E9%9B%99%E6%9C%88%E9%A3%9F%E5%93%81%E7%A4%BE%20%E5%8F%B0%E5%8C%97", "number": "T124", "station": "台北市", "menu": "蛤蜊燉雞湯|油飯|滷味", "budget": "約250～500 TWD", "note": "最終日の昼食。", "map": "https://www.google.com/maps/search/?api=1&query=%E9%9B%99%E6%9C%88%E9%A3%9F%E5%93%81%E7%A4%BE%20%E5%8F%B0%E5%8C%97"}, {"time": "13:30", "name": "濟南鮮湯包", "meta": "小籠包", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=%E6%BF%9F%E5%8D%97%E9%AE%AE%E6%B9%AF%E5%8C%85%20%E5%8F%B0%E5%8C%97", "number": "T117", "station": "忠孝新生駅周辺", "menu": "鮮肉湯包|絲瓜蝦仁湯包|炒飯", "budget": "約300～600 TWD", "note": "昼の食べ歩き2軒目。", "map": "https://www.google.com/maps/search/?api=1&query=%E6%BF%9F%E5%8D%97%E9%AE%AE%E6%B9%AF%E5%8C%85%20%E5%8F%B0%E5%8C%97"}, {"time": "15:00", "name": "豆花莊", "meta": "寧夏夜市周辺", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=%E8%B1%86%E8%8A%B1%E8%8E%8A%20%E5%8F%B0%E5%8C%97", "number": "T109", "station": "雙連駅周辺", "menu": "豆花|ピーナッツ|粉圓", "budget": "約60～100 TWD", "note": "午後の甘味。", "map": "https://www.google.com/maps/search/?api=1&query=%E8%B1%86%E8%8A%B1%E8%8E%8A%20%E5%8F%B0%E5%8C%97"}, {"time": "17:00", "name": "巧之味手工水餃", "meta": "善導寺駅周辺", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=%E5%B7%A7%E4%B9%8B%E5%91%B3%E6%89%8B%E5%B7%A5%E6%B0%B4%E9%A4%83%20%E5%8F%B0%E5%8C%97", "number": "T115", "station": "善導寺駅周辺", "menu": "高麗菜水餃|韭菜水餃|干貝水餃", "budget": "約150～300 TWD", "note": "夕方の軽食。", "map": "https://www.google.com/maps/search/?api=1&query=%E5%B7%A7%E4%B9%8B%E5%91%B3%E6%89%8B%E5%B7%A5%E6%B0%B4%E9%A4%83%20%E5%8F%B0%E5%8C%97"}, {"time": "夜", "name": "雞家莊", "meta": "最終夕食候補", "type": "food", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=%E9%9B%9E%E5%AE%B6%E8%8E%8A%20%E9%95%B7%E6%98%A5%E8%B7%AF", "number": "T125", "station": "松江南京駅・徒歩約7分", "menu": "三味雞|雞油飯|雞卷|雞家豆腐|雞蛋布丁", "budget": "約700～1,000 TWD", "note": "旅行最後の夕食候補。", "map": "https://www.google.com/maps/search/?api=1&query=%E9%9B%9E%E5%AE%B6%E8%8E%8A%20%E9%95%B7%E6%98%A5%E8%B7%AF"}, {"time": "22:20", "name": "台北駅 → 桃園空港", "meta": "空港MRT", "type": "transport", "primary": "Googleマップ", "primaryUrl": "https://www.google.com/maps/search/?api=1&query=Taoyuan+Airport+MRT+Taipei+Main+Station", "number": "移動", "station": "台北駅から桃園空港へ", "menu": "空港MRT", "budget": "乗車券確認", "note": "深夜便に合わせて空港へ移動。", "map": "https://www.google.com/maps/search/?api=1&query=Taoyuan+Airport+MRT+Taipei+Main+Station"}]}};
+
+
+    const STORAGE_KEYS = {
+      favorites: 'gavinTravelFavorites',
+      notes: 'gavinTravelNotes'
+    };
+
+    function loadJSON(key, fallback){
+      try{
+        const value = localStorage.getItem(key);
+        return value ? JSON.parse(value) : fallback;
+      }catch(error){
+        return fallback;
+      }
+    }
+
+    function saveJSON(key, value){
+      localStorage.setItem(key, JSON.stringify(value));
+    }
+
+    let favoriteFoods = new Set(loadJSON(STORAGE_KEYS.favorites, []));
+    let itineraryNotes = loadJSON(STORAGE_KEYS.notes, {});
+    let currentSelectedDay = sessionStorage.getItem('gavinSelectedDay') || '7';
+    let currentModalEventKey = '';
 
     const dayMeta = {
       "6": {label:"2026年8月6日（木）・名古屋 → 台北", short:"8月6日", hotel:"NYS Loft", hotelMeta:"台北駅周辺<br>深夜チェックイン"},
@@ -987,6 +1151,7 @@
 
     function renderItinerary(day) {
       const data = itineraryData[day];
+      currentSelectedDay = day;
       if (!data) return;
 
       itinerarySubtitle.textContent = data.subtitle;
@@ -994,8 +1159,8 @@
         button.classList.toggle('active', button.dataset.day === day);
       });
 
-      timeline.innerHTML = data.events.map(event => `
-        <article class="event">
+      timeline.innerHTML = data.events.map((event,eventIndex) => `
+        <article class="event" data-event-key="${day}-${eventIndex}">
           <span class="event-dot"></span>
           <div class="event-time">${escapeHtml(event.time)}</div>
           <div class="event-card">
@@ -1012,6 +1177,7 @@
                 data-menu="${escapeHtml(event.menu)}"
                 data-budget="${escapeHtml(event.budget)}"
                 data-note="${escapeHtml(event.note)}"
+                data-event-key="${day}-${eventIndex}"
                 data-map="${escapeHtml(event.map)}">詳細</button>
             </div>
           </div>
@@ -1021,6 +1187,7 @@
       sessionStorage.setItem('gavinSelectedDay', day);
       renderHome(day);
       renderMap(day);
+      renderConciergeLabel(day);
       window.scrollTo({top:0, behavior:'instant'});
     }
 
@@ -1039,6 +1206,9 @@
       document.getElementById('itineraryModalBudget').textContent = button.dataset.budget;
       document.getElementById('itineraryModalNote').textContent = button.dataset.note;
       document.getElementById('itineraryModalMap').href = button.dataset.map;
+      currentModalEventKey = button.dataset.eventKey || `${currentSelectedDay}-${button.dataset.time}-${button.dataset.name}`;
+      document.getElementById('itineraryUserNote').value = itineraryNotes[currentModalEventKey] || '';
+      document.getElementById('noteSavedMessage').textContent = '';
 
       const menu = document.getElementById('itineraryModalMenu');
       menu.innerHTML = '';
@@ -1066,6 +1236,229 @@
     });
 
     renderItinerary(sessionStorage.getItem('gavinSelectedDay') || '7');
+
+
+    // Online/offline state
+    const onlineState = document.getElementById('onlineState');
+    const onlineText = document.getElementById('onlineText');
+    function updateOnlineState(){
+      const online = navigator.onLine;
+      onlineState.classList.toggle('offline', !online);
+      onlineText.textContent = online ? 'オンライン' : 'オフライン';
+    }
+    window.addEventListener('online', updateOnlineState);
+    window.addEventListener('offline', updateOnlineState);
+    updateOnlineState();
+
+    // Favorites
+    foodCards.forEach(card => {
+      const photo = card.querySelector('.food-photo');
+      const foodId = card.querySelector('.food-number')?.textContent.trim() || card.dataset.search;
+      const button = document.createElement('button');
+      button.className = 'favorite-btn';
+      button.type = 'button';
+      button.setAttribute('aria-label','お気に入り');
+      button.textContent = '★';
+      button.classList.toggle('active', favoriteFoods.has(foodId));
+      button.addEventListener('click', event => {
+        event.stopPropagation();
+        if(favoriteFoods.has(foodId)){
+          favoriteFoods.delete(foodId);
+          button.classList.remove('active');
+        }else{
+          favoriteFoods.add(foodId);
+          button.classList.add('active');
+        }
+        saveJSON(STORAGE_KEYS.favorites,[...favoriteFoods]);
+        updateFoodList();
+      });
+      photo.appendChild(button);
+
+      const cardName = card.querySelector('h3')?.textContent.trim();
+      const isToday = Object.values(itineraryData[currentSelectedDay]?.events || {})
+        .some(event => event.name && cardName && (event.name.includes(cardName) || cardName.includes(event.name)));
+      if(isToday){
+        const tags = card.querySelector('.tag-row');
+        if(tags){
+          const badge = document.createElement('span');
+          badge.className = 'today-badge';
+          badge.textContent = '● 選択日の旅程';
+          tags.prepend(badge);
+        }
+      }
+    });
+    updateFoodList();
+
+    // Itinerary personal notes
+    document.getElementById('saveItineraryNote')?.addEventListener('click', () => {
+      if(!currentModalEventKey) return;
+      const value = document.getElementById('itineraryUserNote').value.trim();
+      if(value){
+        itineraryNotes[currentModalEventKey] = value;
+      }else{
+        delete itineraryNotes[currentModalEventKey];
+      }
+      saveJSON(STORAGE_KEYS.notes,itineraryNotes);
+      document.getElementById('noteSavedMessage').textContent = '保存しました';
+      setTimeout(() => {
+        document.getElementById('noteSavedMessage').textContent = '';
+      },1800);
+    });
+
+    // Full-day Google Maps route
+    document.getElementById('openDayRoute')?.addEventListener('click', () => {
+      const events = itineraryData[currentSelectedDay]?.events || [];
+      const destinations = events.filter(event => event.map).slice(0,10);
+      if(!destinations.length) return;
+      if(destinations.length === 1){
+        window.open(destinations[0].map,'_blank','noopener');
+        return;
+      }
+      const names = destinations.map(event => event.name);
+      const origin = encodeURIComponent(names[0]);
+      const destination = encodeURIComponent(names[names.length - 1]);
+      const waypoints = names.slice(1,-1).map(encodeURIComponent).join('|');
+      let url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}`;
+      if(waypoints) url += `&waypoints=${waypoints}`;
+      window.open(url,'_blank','noopener');
+    });
+
+    // Share/copy selected day
+    function selectedDayText(){
+      const data = itineraryData[currentSelectedDay];
+      if(!data) return '';
+      return [
+        `台湾2026｜${data.subtitle}`,
+        '',
+        ...data.events.map(event => `${event.time}　${event.name}（${event.meta}）`)
+      ].join('\n');
+    }
+
+    document.getElementById('shareDayBtn')?.addEventListener('click', async () => {
+      const text = selectedDayText();
+      try{
+        if(navigator.share){
+          await navigator.share({title:'Gavin Travel 台湾2026',text});
+        }else{
+          await navigator.clipboard.writeText(text);
+          alert('予定をコピーしました');
+        }
+      }catch(error){}
+    });
+
+    document.getElementById('copyDayBtn')?.addEventListener('click', async () => {
+      const text = selectedDayText();
+      try{
+        await navigator.clipboard.writeText(text);
+        const button = document.getElementById('copyDayBtn');
+        const old = button.textContent;
+        button.textContent = 'コピーしました';
+        setTimeout(() => button.textContent = old,1500);
+      }catch(error){
+        alert(text);
+      }
+    });
+
+    // Concierge
+    const conciergeAnswer = document.getElementById('conciergeAnswer');
+    const conciergeAnswerTitle = document.getElementById('conciergeAnswerTitle');
+    const conciergeAnswerText = document.getElementById('conciergeAnswerText');
+
+    function renderConciergeLabel(day){
+      const meta = dayMeta[day];
+      if(meta) document.getElementById('conciergeDayLabel').textContent = `${meta.short}の旅程を参照中`;
+    }
+
+    function showConciergeAnswer(title,text){
+      conciergeAnswerTitle.textContent = title;
+      conciergeAnswerText.innerHTML = text;
+      conciergeAnswer.classList.add('show');
+    }
+
+    document.querySelectorAll('.quick-btn').forEach(button => {
+      button.addEventListener('click', () => {
+        const data = itineraryData[currentSelectedDay];
+        const meta = dayMeta[currentSelectedDay];
+        if(!data) return;
+
+        if(button.dataset.question === 'next'){
+          const next = pickNextEvent(currentSelectedDay);
+          showConciergeAnswer('次の予定', next
+            ? `<strong>${escapeHtml(next.time)}　${escapeHtml(next.name)}</strong><br>${escapeHtml(next.meta)}`
+            : '予定はありません。');
+        }
+
+        if(button.dataset.question === 'food'){
+          const foods = data.events.filter(event => event.type === 'food');
+          showConciergeAnswer('食事の予定', foods.length
+            ? foods.map(event => `<strong>${escapeHtml(event.time)}</strong>　${escapeHtml(event.name)}`).join('<br>')
+            : `${meta.short}には食事予定が登録されていません。`);
+        }
+
+        if(button.dataset.question === 'transport'){
+          const moves = data.events.filter(event => event.type === 'transport');
+          showConciergeAnswer('移動の予定', moves.length
+            ? moves.map(event => `<strong>${escapeHtml(event.time)}</strong>　${escapeHtml(event.name)}<br>${escapeHtml(event.meta)}`).join('<br><br>')
+            : `${meta.short}には長距離移動が登録されていません。`);
+        }
+
+        if(button.dataset.question === 'hotel'){
+          showConciergeAnswer('ホテル', `<strong>${escapeHtml(dayMeta[currentSelectedDay].hotel)}</strong><br>${dayMeta[currentSelectedDay].hotelMeta}`);
+        }
+      });
+    });
+
+    // Backup / restore favorites and notes
+    const dataToolStatus = document.getElementById('dataToolStatus');
+    document.getElementById('exportDataBtn')?.addEventListener('click', () => {
+      const payload = {
+        app:'Gavin Travel',
+        version:'1.5',
+        exportedAt:new Date().toISOString(),
+        selectedDay:currentSelectedDay,
+        favorites:[...favoriteFoods],
+        notes:itineraryNotes
+      };
+      const blob = new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'gavin-travel-backup.json';
+      link.click();
+      URL.revokeObjectURL(url);
+      dataToolStatus.textContent = 'バックアップを書き出しました。';
+    });
+
+    document.getElementById('importDataBtn')?.addEventListener('click', () => {
+      document.getElementById('importDataInput').click();
+    });
+
+    document.getElementById('importDataInput')?.addEventListener('change', async event => {
+      const file = event.target.files?.[0];
+      if(!file) return;
+      try{
+        const payload = JSON.parse(await file.text());
+        favoriteFoods = new Set(Array.isArray(payload.favorites) ? payload.favorites : []);
+        itineraryNotes = payload.notes && typeof payload.notes === 'object' ? payload.notes : {};
+        saveJSON(STORAGE_KEYS.favorites,[...favoriteFoods]);
+        saveJSON(STORAGE_KEYS.notes,itineraryNotes);
+        if(payload.selectedDay && itineraryData[payload.selectedDay]){
+          renderItinerary(payload.selectedDay);
+        }
+        document.querySelectorAll('.favorite-btn').forEach(button => {
+          const card = button.closest('.food-card');
+          const foodId = card.querySelector('.food-number')?.textContent.trim() || card.dataset.search;
+          button.classList.toggle('active',favoriteFoods.has(foodId));
+        });
+        updateFoodList();
+        dataToolStatus.textContent = 'バックアップを読み込みました。';
+      }catch(error){
+        dataToolStatus.textContent = '読込に失敗しました。';
+      }
+      event.target.value = '';
+    });
+
+    renderConciergeLabel(currentSelectedDay);
 
   </script>
 </body>
