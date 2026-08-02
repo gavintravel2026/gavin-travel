@@ -157,26 +157,30 @@
     .date-pill.active strong{color:#1b241c}
     .timeline{position:relative}
     .timeline::before{
-      content:"";position:absolute;left:98px;top:28px;bottom:24px;width:3px;
+      content:"";position:absolute;left:94px;top:28px;bottom:24px;width:3px;
       background:linear-gradient(var(--gold),rgba(241,195,108,.12));
       border-radius:999px
     }
     .event{
       position:relative;
-      display:grid;grid-template-columns:118px minmax(0,1fr);gap:12px;
+      display:grid;
+      grid-template-columns:76px 36px minmax(0,1fr);
+      column-gap:10px;
       margin-bottom:17px
     }
     .event-dot{
       width:20px;height:20px;border-radius:50%;
       background:var(--gold);border:4px solid #0a1712;
-      position:absolute;left:89px;top:24px;z-index:2
+      position:absolute;left:85px;top:24px;z-index:2
     }
     .event-time{
-      padding-top:16px;padding-right:39px;
+      grid-column:1;
+      padding-top:16px;
       font-size:18px;font-weight:850;color:var(--gold);
       text-align:right;letter-spacing:0;white-space:nowrap
     }
     .event-card{
+      grid-column:3;
       border-radius:22px;padding:18px;
       background:linear-gradient(180deg,var(--card2),var(--card));
       border:1px solid rgba(255,255,255,.06);
@@ -333,10 +337,10 @@
       .time{font-size:51px}
       .place{font-size:27px}
       .summary-grid{grid-template-columns:1fr}
-      .timeline::before{left:88px}
-      .event{grid-template-columns:108px minmax(0,1fr);gap:10px}
-      .event-dot{left:79px}
-      .event-time{font-size:18px;padding-right:35px}
+      .timeline::before{left:84px}
+      .event{grid-template-columns:68px 32px minmax(0,1fr);column-gap:8px}
+      .event-dot{left:75px}
+      .event-time{font-size:18px;padding-right:0}
       .event-actions{grid-template-columns:minmax(0,1.25fr) minmax(70px,.75fr)}
     }
   </style>
