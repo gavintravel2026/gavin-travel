@@ -768,6 +768,13 @@
     const emptyResult = document.getElementById('emptyResult');
     let activeFilter = 'all';
 
+    const foodModal = document.getElementById('foodModal');
+    const modalNumber = document.getElementById('modalNumber');
+    const modalName = document.getElementById('modalName');
+    const modalRegion = document.getElementById('modalRegion');
+    const modalMenu = document.getElementById('modalMenu');
+    const modalNote = document.getElementById('modalNote');
+    const modalMap = document.getElementById('modalMap');
 
     function mapSearchUrl(name){
       return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name + ' 台湾')}`;
@@ -781,6 +788,8 @@
 
     function renderGourmetCards(){
       const list = document.getElementById('foodList');
+      if(!list || typeof gourmetData === 'undefined') return;
+
       const dayNames = selectedDayRestaurantNames();
       const regionOrder = ['台北','台中','台南','宜蘭','彰化'];
 
@@ -790,10 +799,14 @@
 
         const cards = rows.map(item => {
           const photo = gourmetPhotos[item.category] || defaultGourmetPhoto;
-          const isToday = [...dayNames].some(name => name.includes(item.name.replace(/（.*?）/g,'')) || item.name.includes(name));
+          const plainName = item.name.replace(/（.*?）/g,'');
+          const isToday = [...dayNames].some(name =>
+            name.includes(plainName) || plainName.includes(name)
+          );
           const tags = [...item.tags];
           if(isToday && !tags.includes('選択日の旅程')) tags.unshift('選択日の旅程');
           const map = mapSearchUrl(item.name);
+
           return `
             <article class="food-card compact"
               data-region="${escapeHtml(item.region)}"
@@ -812,7 +825,8 @@
                   ${tags.map(tag => `<span class="${tag === '選択日の旅程' ? 'today-badge' : 'food-tag'}">${escapeHtml(tag)}</span>`).join('')}
                 </div>
                 <div class="food-actions">
-                  <a class="small-btn primary" target="_blank" rel="noopener" href="${escapeHtml(map)}">Googleマップ</a>
+                  <a class="small-btn primary" target="_blank" rel="noopener"
+                    href="${escapeHtml(map)}">Googleマップ</a>
                   <button class="small-btn detail-btn"
                     data-number="${escapeHtml(item.id)}"
                     data-name="${escapeHtml(item.name)}"
@@ -851,15 +865,72 @@
         });
       });
 
-      function closeFoodModal(){
+      document.querySelectorAll('.detail-btn').forEach(button => {
+        button.addEventListener('click', () => {
+          modalNumber.textContent = button.dataset.number;
+          modalName.textContent = button.dataset.name;
+          modalRegion.textContent = button.dataset.region;
+          modalNote.textContent = button.dataset.note;
+          modalMap.href = button.dataset.map;
+          modalMenu.innerHTML = '';
+
+          button.dataset.menu.split('|').forEach(item => {
+            const div = document.createElement('div');
+            div.className = 'menu-item';
+            div.textContent = item;
+            modalMenu.appendChild(div);
+          });
+
+          foodModal.classList.add('open');
+          foodModal.setAttribute('aria-hidden','false');
+          document.body.style.overflow = 'hidden';
+        });
+      });
+    }
+
+    function updateFoodList(){
+      const keyword = (searchInput?.value || '').trim().toLowerCase();
+      let visibleCount = 0;
+
+      foodCards.forEach(card => {
+        const foodId = card.dataset.foodId || card.querySelector('.food-number')?.textContent.trim();
+        const regionMatch =
+          activeFilter === 'all' ||
+          card.dataset.region === activeFilter ||
+          (activeFilter === 'favorites' && favoriteFoods.has(foodId));
+        const keywordMatch = !keyword || card.dataset.search.toLowerCase().includes(keyword);
+        const visible = regionMatch && keywordMatch;
+        card.style.display = visible ? '' : 'none';
+        if(visible) visibleCount++;
+      });
+
+      const visibleCounter = document.getElementById('visibleFoodCount');
+      const favoriteCounter = document.getElementById('favoriteFoodCount');
+      if(visibleCounter) visibleCounter.textContent = visibleCount;
+      if(favoriteCounter) favoriteCounter.textContent = favoriteFoods.size;
+      if(emptyResult) emptyResult.style.display = visibleCount ? 'none' : 'block';
+    }
+
+    searchInput?.addEventListener('input', updateFoodList);
+
+    filterButtons.forEach(button => {
+      button.addEventListener('click', () => {
+        filterButtons.forEach(item => item.classList.remove('active'));
+        button.classList.add('active');
+        activeFilter = button.dataset.filter;
+        updateFoodList();
+      });
+    });
+
+    function closeFoodModal(){
       foodModal.classList.remove('open');
       foodModal.setAttribute('aria-hidden','true');
       document.body.style.overflow = '';
     }
 
     document.getElementById('closeModal')?.addEventListener('click', closeFoodModal);
-    foodModal?.addEventListener('click', e => {
-      if(e.target === foodModal) closeFoodModal();
+    foodModal?.addEventListener('click', event => {
+      if(event.target === foodModal) closeFoodModal();
     });
 
 
@@ -1142,23 +1213,6 @@
     updateOnlineState();
 
     // Favorites and gourmet detail actions are bound after dynamic rendering.
-      });
-      photo.appendChild(button);
-
-      const cardName = card.querySelector('h3')?.textContent.trim();
-      const isToday = Object.values(itineraryData[currentSelectedDay]?.events || {})
-        .some(event => event.name && cardName && (event.name.includes(cardName) || cardName.includes(event.name)));
-      if(isToday){
-        const tags = card.querySelector('.tag-row');
-        if(tags){
-          const badge = document.createElement('span');
-          badge.className = 'today-badge';
-          badge.textContent = '● 選択日の旅程';
-          tags.prepend(badge);
-        }
-      }
-    });
-    updateFoodList();
 
     // Itinerary personal notes
     document.getElementById('saveItineraryNote')?.addEventListener('click', () => {
