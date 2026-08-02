@@ -188,7 +188,15 @@
       border-radius:22px;padding:18px;
       background:linear-gradient(180deg,var(--card2),var(--card));
       border:1px solid rgba(255,255,255,.06);
-      min-width:0
+      min-width:0;
+      position:relative
+    }
+    .event-card.has-photo{padding-right:98px}
+    .event-photo{
+      position:absolute;top:14px;right:14px;
+      width:72px;height:72px;border-radius:13px;
+      object-fit:cover;background:#14291f;
+      border:1px solid rgba(255,255,255,.09)
     }
     .event-card h3{font-size:23px;line-height:1.25;margin:0 0 7px}
     .event-meta{font-size:15px;color:var(--muted);margin-bottom:14px}
@@ -1179,6 +1187,31 @@
       }
     }
 
+    function findGourmetForEvent(event){
+      const eventName = String(event.name || '').replace(/（.*?）/g,'').trim();
+      return gourmetData.find(item => {
+        const itemName = String(item.name || '').replace(/（.*?）/g,'').trim();
+        return eventName.includes(itemName) || itemName.includes(eventName);
+      });
+    }
+
+    function itineraryPhotoUrl(event){
+      if(event.type === 'food'){
+        const item = findGourmetForEvent(event);
+        if(item){
+          return gourmetPhotos[item.category] || defaultGourmetPhoto;
+        }
+        return defaultGourmetPhoto;
+      }
+
+      if(event.type === 'spot'){
+        const query = `${event.name} 台湾 観光 写真`;
+        return `https://tse1.mm.bing.net/th?q=${encodeURIComponent(query)}&w=500&h=500&c=7&rs=1&p=0`;
+      }
+
+      return '';
+    }
+
     function renderItinerary(day) {
       const data = itineraryData[day];
       currentSelectedDay = day;
@@ -1189,11 +1222,14 @@
         button.classList.toggle('active', button.dataset.day === day);
       });
 
-      timeline.innerHTML = data.events.map((event,eventIndex) => `
+      timeline.innerHTML = data.events.map((event,eventIndex) => {
+        const photo = itineraryPhotoUrl(event);
+        return `
         <article class="event" data-event-key="${day}-${eventIndex}">
           <span class="event-dot"></span>
           <div class="event-time">${escapeHtml(event.time)}</div>
-          <div class="event-card">
+          <div class="event-card ${photo ? 'has-photo' : ''}">
+            ${photo ? `<img class="event-photo" src="${escapeHtml(photo)}" alt="${escapeHtml(event.name)}" loading="lazy">` : ''}
             <h3>${escapeHtml(event.name)}</h3>
             <div class="event-meta">${escapeHtml(event.meta)}</div>
             <div class="event-actions">
@@ -1212,7 +1248,8 @@
             </div>
           </div>
         </article>
-      `).join('');
+      `;
+      }).join('');
 
       sessionStorage.setItem('gavinSelectedDay', day);
       renderHome(day);
