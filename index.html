@@ -637,37 +637,23 @@
       <div class="map-list" id="mapList"></div>
     </section>
     <section class="screen" id="concierge">
-      <p class="eyebrow">台湾2026</p>
-      <h1 class="page-title">相談</h1>
-      <p class="sub">選択中の日程をもとに、すぐ確認できます。</p>
+<p class="eyebrow">台湾2026</p>
+<h1 class="page-title">コンシェルジュ</h1>
+<p class="sub">旅行について質問できます。</p>
 
-      <div class="concierge-head">
-        <h2>Gavin Concierge</h2>
-        <p id="conciergeDayLabel">8月7日の旅程を参照中</p>
-      </div>
-
-      <div class="quick-grid">
-        <button class="quick-btn" data-question="next"><span>→</span>次の予定は？</button>
-        <button class="quick-btn" data-question="food"><span>🍜</span>食事だけ見る</button>
-        <button class="quick-btn" data-question="transport"><span>🚄</span>移動だけ見る</button>
-        <button class="quick-btn" data-question="hotel"><span>🏨</span>ホテルを確認</button>
-      </div>
-
-      <div class="answer-card" id="conciergeAnswer">
-        <h3 id="conciergeAnswerTitle"></h3>
-        <p id="conciergeAnswerText"></p>
-      </div>
-
-      <div class="tools-card">
-        <h3>旅行データ</h3>
-        <div class="tool-actions">
-          <button class="tool-btn primary" id="exportDataBtn">バックアップ保存</button>
-          <button class="tool-btn" id="importDataBtn">バックアップ読込</button>
-        </div>
-        <input class="import-input" id="importDataInput" type="file" accept="application/json">
-        <div class="tool-status" id="dataToolStatus">お気に入りとメモを端末内に保存しています。</div>
-      </div>
-    </section>
+<div style="background:#0d1f19;border-radius:20px;padding:16px;height:52vh;display:flex;flex-direction:column;">
+<div id="chatHistory" style="flex:1;overflow:auto;margin-bottom:12px;">
+<div style="background:#162d24;padding:12px;border-radius:14px;max-width:90%;margin-bottom:10px;">
+こんにちは。旅程・グルメについて質問してください。
+</div>
+</div>
+<div style="display:flex;gap:8px;">
+<button id="micBtn" style="width:48px;border-radius:14px;">🎤</button>
+<input id="chatInput" placeholder="メッセージを入力" style="flex:1;border-radius:14px;padding:12px;">
+<button id="sendBtn" style="border-radius:14px;padding:0 16px;">送信</button>
+</div>
+</div>
+</section>
   </main>
 
 
@@ -1381,6 +1367,28 @@
     renderConciergeLabel(currentSelectedDay);
     renderGourmetCards();
 
-  </script>
+  
+const chatHistory=document.getElementById('chatHistory');
+function addMsg(text,me=false){
+ if(!chatHistory)return;
+ const d=document.createElement('div');
+ d.style.cssText='padding:12px;border-radius:14px;max-width:90%;margin:10px 0;background:'+(me?'#f1c36c;color:#142018;margin-left:auto':'#162d24');
+ d.textContent=text;
+ chatHistory.appendChild(d);
+ chatHistory.scrollTop=chatHistory.scrollHeight;
+}
+document.getElementById('sendBtn')?.addEventListener('click',()=>{
+ const i=document.getElementById('chatInput');
+ if(!i.value.trim())return;
+ const q=i.value.trim();
+ addMsg(q,true);
+ i.value='';
+ let ans='この機能は次の版でAI回答に対応します。';
+ if(q.includes('次')) ans='現在は旅程データを使うAI回答を実装中です。';
+ addMsg(ans,false);
+});
+document.getElementById('micBtn')?.addEventListener('click',()=>alert('音声入力は次の版で対応します。'));
+
+</script>
 </body>
 </html>
