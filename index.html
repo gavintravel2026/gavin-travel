@@ -316,6 +316,26 @@
 
 
     /* functional home / map additions */
+
+    .location-card{
+      margin-top:14px;padding:16px;border-radius:20px;
+      background:var(--card);border:1px solid rgba(255,255,255,.07)
+    }
+    .location-card-top{
+      display:flex;align-items:center;justify-content:space-between;gap:12px
+    }
+    .location-card h3{font-size:18px;margin:0 0 5px}
+    .location-status{font-size:14px;color:var(--muted);line-height:1.45}
+    .location-actions{
+      display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px
+    }
+    .location-btn{
+      min-height:48px;border-radius:14px;border:1px solid rgba(255,255,255,.08);
+      background:#162d24;color:var(--text);font-size:14px;font-weight:850
+    }
+    .location-btn.primary{background:var(--gold);color:#142018}
+    .location-btn:disabled{opacity:.45}
+
     .home-status{
       display:flex;align-items:center;gap:8px;
       color:var(--muted);font-size:14px;margin-top:-10px;margin-bottom:18px
@@ -456,30 +476,6 @@
     .stat-chip strong{color:var(--gold)}
 
 
-
-    .ai-mode-panel{
-      margin-bottom:14px;padding:14px;border-radius:20px;
-      background:var(--card);border:1px solid rgba(255,255,255,.07)
-    }
-    .ai-mode-title{
-      margin-bottom:10px;font-size:15px;font-weight:900;color:var(--gold)
-    }
-    .ai-mode-switch{
-      display:grid;grid-template-columns:repeat(3,1fr);gap:8px
-    }
-    .ai-mode-btn{
-      min-height:44px;border-radius:14px;
-      border:1px solid rgba(255,255,255,.08);
-      background:#162d24;color:var(--muted);
-      font-size:14px;font-weight:900
-    }
-    .ai-mode-btn.active{
-      background:var(--gold);color:#142018;border-color:transparent
-    }
-    .ai-mode-note{
-      margin-top:9px;color:var(--muted);font-size:13px;line-height:1.45
-    }
-
     .chat-shell{
       background:linear-gradient(180deg,var(--card2),var(--card));
       border:1px solid rgba(255,255,255,.07);
@@ -589,6 +585,19 @@
              href="https://www.google.com/maps/search/?api=1&query=%E6%9D%AD%E5%B7%9E%E5%B0%8F%E7%B1%A0%E6%B9%AF%E5%8C%85%20%E5%8F%B0%E5%8C%97">
              📍 Googleマップで開く
           </a>
+        </div>
+      </div>
+
+      <div class="location-card">
+        <div class="location-card-top">
+          <div>
+            <h3>📍 現在地から次の予定へ</h3>
+            <div class="location-status" id="locationStatus">現在地を取得すると、Googleマップで徒歩ルートを開けます。</div>
+          </div>
+        </div>
+        <div class="location-actions">
+          <button class="location-btn" id="getLocationBtn" type="button">現在地を取得</button>
+          <button class="location-btn primary" id="openWalkingRouteBtn" type="button" disabled>徒歩ルートを開く</button>
         </div>
       </div>
 
@@ -720,16 +729,6 @@
       <p class="eyebrow">台湾2026</p>
       <h1 class="page-title">コンシェルジュ</h1>
       <p class="sub" id="conciergeDayLabel">選択中の日程を参照して回答します。</p>
-
-      <div class="ai-mode-panel">
-        <div class="ai-mode-title">AIモード</div>
-        <div class="ai-mode-switch" role="group" aria-label="AIモード">
-          <button type="button" class="ai-mode-btn active" data-ai-mode="auto">自動</button>
-          <button type="button" class="ai-mode-btn" data-ai-mode="offline">オフライン</button>
-          <button type="button" class="ai-mode-btn" data-ai-mode="online">オンライン</button>
-        </div>
-        <div class="ai-mode-note" id="aiModeNote">旅程内はオフライン、その他はオンラインへ切り替えます。</div>
-      </div>
 
       <div class="chat-shell">
         <div class="chat-history" id="chatHistory" aria-live="polite">
@@ -1372,53 +1371,6 @@
     });
 
 
-
-    const AI_MODE_KEY = 'gavinTravelAiMode';
-    let aiMode = localStorage.getItem(AI_MODE_KEY) || 'auto';
-
-    const aiModeButtons = [...document.querySelectorAll('.ai-mode-btn')];
-    const aiModeNote = document.getElementById('aiModeNote');
-
-    function applyAiMode(mode){
-      aiMode = ['auto','offline','online'].includes(mode) ? mode : 'auto';
-      localStorage.setItem(AI_MODE_KEY, aiMode);
-
-      aiModeButtons.forEach(button => {
-        button.classList.toggle('active', button.dataset.aiMode === aiMode);
-      });
-
-      if(aiModeNote){
-        aiModeNote.textContent =
-          aiMode === 'auto'
-            ? '旅程内はオフライン、その他はオンラインへ切り替えます。'
-            : aiMode === 'offline'
-              ? '旅程・グルメ・ホテルの登録情報だけで回答します。'
-              : '一般的な質問に対応するオンラインAIモードです。';
-      }
-    }
-
-    aiModeButtons.forEach(button => {
-      button.addEventListener('click', () => applyAiMode(button.dataset.aiMode));
-    });
-
-    function isOfflineQuestion(question){
-      const q = normalizeQuestion(question);
-      return (
-        /(?:8月|8\/)?(?:6|7|8|9|10|11|12)日?/.test(question) ||
-        /\bt\d{3}\b/i.test(question) ||
-        ['次','予定','日程','ホテル','宿','食事','ご飯','食べ','レストラン',
-         '移動','電車','高鐵','台鐵','mrt','地図','場所','行き方','おすすめ','メニュー']
-          .some(word => q.includes(normalizeQuestion(word)))
-      );
-    }
-
-    function onlineUnavailableAnswer(){
-      return 'オンラインAIは、ChatGPT APIの設定後に利用できます。現在はオフライン回答を使ってください。';
-    }
-
-    applyAiMode(aiMode);
-
-
     // Local concierge answer logic
     const chatHistory = document.getElementById('chatHistory');
     const chatInput = document.getElementById('chatInput');
@@ -1525,25 +1477,12 @@
     function sendChatQuestion(prefilled){
       const question = (prefilled ?? chatInput?.value ?? '').trim();
       if(!question) return;
-
       addChatMessage(question,'user');
       if(chatInput) chatInput.value = '';
       if(chatStatus) chatStatus.textContent = '回答を作成中…';
 
       setTimeout(() => {
-        let answer;
-
-        if(aiMode === 'offline'){
-          answer = answerTravelQuestion(question);
-        }else if(aiMode === 'online'){
-          answer = onlineUnavailableAnswer();
-        }else{
-          answer = isOfflineQuestion(question)
-            ? answerTravelQuestion(question)
-            : onlineUnavailableAnswer();
-        }
-
-        addChatMessage(answer,'assistant');
+        addChatMessage(answerTravelQuestion(question),'assistant');
         if(chatStatus) chatStatus.textContent = '';
       },250);
     }
@@ -1607,7 +1546,7 @@
     document.getElementById('exportDataBtn')?.addEventListener('click', () => {
       const payload = {
         app:'Gavin Travel',
-        version:'2.0.7',
+        version:'2.0.6',
         exportedAt:new Date().toISOString(),
         selectedDay:currentSelectedDay,
         favorites:[...favoriteFoods],
@@ -1693,6 +1632,89 @@
         document.getElementById('chatInput')?.focus();
       });
     });
+
+
+    // Current location → next destination
+    let currentPosition = null;
+    const locationStatus = document.getElementById('locationStatus');
+    const getLocationBtn = document.getElementById('getLocationBtn');
+    const openWalkingRouteBtn = document.getElementById('openWalkingRouteBtn');
+
+    function currentNextEvent(){
+      return pickNextEvent(currentSelectedDay);
+    }
+
+    function updateWalkingButton(){
+      const next = currentNextEvent();
+      openWalkingRouteBtn.disabled = !(currentPosition && next);
+    }
+
+    getLocationBtn?.addEventListener('click', () => {
+      if(!navigator.geolocation){
+        locationStatus.textContent = 'この端末では現在地を取得できません。';
+        return;
+      }
+
+      getLocationBtn.disabled = true;
+      locationStatus.textContent = '現在地を取得しています…';
+
+      navigator.geolocation.getCurrentPosition(
+        position => {
+          currentPosition = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          };
+          const next = currentNextEvent();
+          locationStatus.textContent = next
+            ? `現在地を取得しました。次は「${next.name}」です。`
+            : '現在地を取得しました。次の予定はありません。';
+          getLocationBtn.textContent = '現在地を更新';
+          getLocationBtn.disabled = false;
+          updateWalkingButton();
+        },
+        error => {
+          const messages = {
+            1:'位置情報の利用を許可してください。',
+            2:'現在地を取得できませんでした。',
+            3:'現在地の取得がタイムアウトしました。'
+          };
+          locationStatus.textContent = messages[error.code] || '現在地を取得できませんでした。';
+          getLocationBtn.disabled = false;
+        },
+        {
+          enableHighAccuracy:true,
+          timeout:12000,
+          maximumAge:60000
+        }
+      );
+    });
+
+    openWalkingRouteBtn?.addEventListener('click', () => {
+      const next = currentNextEvent();
+      if(!currentPosition || !next) return;
+
+      const origin = `${currentPosition.lat},${currentPosition.lng}`;
+      const destination = next.name;
+      const url =
+        `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}` +
+        `&destination=${encodeURIComponent(destination)}` +
+        `&travelmode=walking`;
+
+      window.location.href = url;
+    });
+
+    // Keep the route button in sync when the selected day changes.
+    const originalRenderHome = renderHome;
+    renderHome = function(day){
+      originalRenderHome(day);
+      updateWalkingButton();
+      if(currentPosition){
+        const next = currentNextEvent();
+        locationStatus.textContent = next
+          ? `現在地を取得済みです。次は「${next.name}」です。`
+          : '現在地を取得済みです。次の予定はありません。';
+      }
+    };
 
 </script>
 </body>
