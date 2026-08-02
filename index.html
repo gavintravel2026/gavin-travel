@@ -1294,7 +1294,7 @@
         const photo = itineraryPhotoUrl(event);
         return `
         <article class="event" data-event-key="${day}-${eventIndex}">
-          <span class="event-dot"></span>
+          
           <div class="event-time">${formatEventTime(event.time)}</div>
           <div class="event-card ${photo ? 'has-photo' : ''}">
             ${photo ? `<img class="event-photo" src="${escapeHtml(photo)}" alt="${escapeHtml(event.name)}" loading="lazy">` : ''}
