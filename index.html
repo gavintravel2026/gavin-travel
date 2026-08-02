@@ -63,7 +63,7 @@
       overflow:hidden;
       background:
         linear-gradient(180deg,rgba(2,7,5,.1),rgba(3,11,8,.94)),
-        url('https://tse1.mm.bing.net/th?q=%E6%9D%AD%E5%B7%9E%E5%B0%8F%E7%B1%A0%E6%B9%AF%E5%8C%85%20%E5%8F%B0%E5%8C%97%20%E5%B0%8F%E7%B1%A0%E5%8C%85&w=1200&h=800&c=7&rs=1&p=0') center/cover;
+        url('https://tse1.mm.bing.net/th?q=%E6%9D%AD%E5%B7%9E%E5%B0%8F%E7%B1%A0%E6%B9%AF%E5%8C%85%20%E5%8F%B0%E5%8C%97%20%E5%B0%8F%E7%B1%A0%E5%8C%85%20%E6%96%99%E7%90%86%E5%86%99%E7%9C%9F%20%E5%AE%9F%E7%89%A9%20-%E3%83%A1%E3%83%8B%E3%83%A5%E3%83%BC%20-menu%20-%E7%9C%8B%E6%9D%BF&w=1200&h=800&c=7&rs=1&p=0') center/cover;
       box-shadow:var(--shadow);
       border:1px solid rgba(255,255,255,.08)
     }
@@ -706,7 +706,7 @@
 
       <div class="food-list" id="foodList"></div>
       <div class="source-note">
-        写真は店名・地域・代表料理を指定して店舗ごとに読み込みます。グルメ番号と登録内容は台湾2026グルメブックを基準にしています。
+        写真は店名・地域・代表料理を指定し、メニュー表や看板を除外して料理写真を読み込みます。グルメ番号と登録内容は台湾2026グルメブックを基準にしています。
       </div>
 
       <div class="empty-result" id="emptyResult">該当するお店がありません。</div>
@@ -872,7 +872,10 @@
 
 
     function restaurantPhotoUrl(item){
-      const query = `${item.name} ${item.region} ${item.menu?.[0] || item.category || '料理'}`;
+      const representativeDish = item.menu?.[0] || item.category || '料理';
+      const query =
+        `${item.name} ${item.region} ${representativeDish} 料理写真 実物 ` +
+        `-メニュー -menu -看板 -価格表 -店頭`;
       return `https://tse1.mm.bing.net/th?q=${encodeURIComponent(query)}&w=1000&h=650&c=7&rs=1&p=0`;
     }
 
