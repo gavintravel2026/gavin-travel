@@ -157,22 +157,22 @@
     .date-pill.active strong{color:#1b241c}
     .timeline{position:relative}
     .timeline::before{
-      content:"";position:absolute;left:82px;top:28px;bottom:24px;width:3px;
+      content:"";position:absolute;left:98px;top:28px;bottom:24px;width:3px;
       background:linear-gradient(var(--gold),rgba(241,195,108,.12));
       border-radius:999px
     }
     .event{
       position:relative;
-      display:grid;grid-template-columns:110px 1fr;gap:16px;
+      display:grid;grid-template-columns:118px minmax(0,1fr);gap:12px;
       margin-bottom:17px
     }
     .event-dot{
       width:20px;height:20px;border-radius:50%;
       background:var(--gold);border:4px solid #0a1712;
-      position:absolute;left:73px;top:24px;z-index:2
+      position:absolute;left:89px;top:24px;z-index:2
     }
     .event-time{
-      padding-top:16px;padding-right:32px;
+      padding-top:16px;padding-right:39px;
       font-size:18px;font-weight:850;color:var(--gold);
       text-align:right;letter-spacing:0;white-space:nowrap
     }
@@ -184,7 +184,7 @@
     }
     .event-card h3{font-size:23px;line-height:1.25;margin:0 0 7px}
     .event-meta{font-size:15px;color:var(--muted);margin-bottom:14px}
-    .event-actions{display:flex;gap:10px}
+    .event-actions{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(74px,.8fr);gap:10px}
     .small-btn{
       flex:1;min-height:52px;border-radius:15px;
       display:flex;align-items:center;justify-content:center;
@@ -299,6 +299,12 @@
     }
     .detail-note{font-size:16px;line-height:1.65;color:#d7dfda}
     .modal-map{margin-top:20px}
+    .detail-grid{
+      display:grid;grid-template-columns:92px 1fr;gap:10px 12px;
+      padding:15px;border-radius:17px;background:#11261d
+    }
+    .detail-grid dt{color:var(--muted);font-size:14px}
+    .detail-grid dd{margin:0;font-size:16px;line-height:1.45}
 
     .placeholder{
       min-height:60vh;display:grid;place-items:center;text-align:center;color:var(--muted)
@@ -327,11 +333,11 @@
       .time{font-size:51px}
       .place{font-size:27px}
       .summary-grid{grid-template-columns:1fr}
-      .timeline::before{left:72px}
-      .event{grid-template-columns:98px 1fr;gap:12px}
-      .event-dot{left:63px}
-      .event-time{font-size:18px;padding-right:29px}
-      .event-actions{grid-template-columns:1fr}
+      .timeline::before{left:88px}
+      .event{grid-template-columns:108px minmax(0,1fr);gap:10px}
+      .event-dot{left:79px}
+      .event-time{font-size:18px;padding-right:35px}
+      .event-actions{grid-template-columns:minmax(0,1.25fr) minmax(70px,.75fr)}
     }
   </style>
 </head>
@@ -428,7 +434,7 @@
             <div class="event-actions">
               <a class="small-btn primary" target="_blank" rel="noopener"
                  href="https://www.google.com/maps/search/?api=1&query=%E6%9D%AD%E5%B7%9E%E5%B0%8F%E7%B1%A0%E6%B9%AF%E5%8C%85%20%E5%8F%B0%E5%8C%97">Googleマップ</a>
-              <a class="small-btn" href="#">詳細</a>
+              <button class="small-btn itinerary-detail-btn" data-name="杭州小籠湯包" data-number="T112" data-time="11:00" data-station="東門駅（R・O）・徒歩8分" data-menu="小籠湯包|蝦仁燒賣|酸辣湯" data-budget="約300～500 TWD" data-note="8月7日の昼食予定。" data-map="https://www.google.com/maps/search/?api=1&query=%E6%9D%AD%E5%B7%9E%E5%B0%8F%E7%B1%A0%E6%B9%AF%E5%8C%85%20%E5%8F%B0%E5%8C%97">詳細</button>
             </div>
           </div>
         </article>
@@ -442,7 +448,7 @@
             <div class="event-actions">
               <a class="small-btn primary" target="_blank" rel="noopener"
                  href="https://www.google.com/maps/search/?api=1&query=%E5%8A%89%E5%B1%B1%E6%9D%B1%E7%89%9B%E8%82%89%E9%BA%B5%20%E5%8F%B0%E5%8C%97">Googleマップ</a>
-              <a class="small-btn" href="#">詳細</a>
+              <button class="small-btn itinerary-detail-btn" data-name="劉山東牛肉麵" data-number="T120" data-time="14:30" data-station="台北駅・徒歩約6分" data-menu="紅燒牛肉麵|清燉牛肉麵|小菜" data-budget="約200～350 TWD" data-note="台北駅周辺の老舗牛肉麺店。" data-map="https://www.google.com/maps/search/?api=1&query=%E5%8A%89%E5%B1%B1%E6%9D%B1%E7%89%9B%E8%82%89%E9%BA%B5%20%E5%8F%B0%E5%8C%97">詳細</button>
             </div>
           </div>
         </article>
@@ -456,7 +462,7 @@
             <div class="event-actions">
               <a class="small-btn primary" target="_blank" rel="noopener"
                  href="https://www.google.com/maps/search/?api=1&query=%E5%8F%A4%E6%97%A9%E5%91%B3%E8%B1%86%E8%8A%B1%20%E5%8F%B0%E5%8C%97">Googleマップ</a>
-              <a class="small-btn" href="#">詳細</a>
+              <button class="small-btn itinerary-detail-btn" data-name="古早味豆花" data-number="T123" data-time="16:00" data-station="民權西路駅・徒歩圏" data-menu="豆花|粉圓|ピーナッツ" data-budget="約60～100 TWD" data-note="台中への移動前に立ち寄る甘味。" data-map="https://www.google.com/maps/search/?api=1&query=%E5%8F%A4%E6%97%A9%E5%91%B3%E8%B1%86%E8%8A%B1%20%E5%8F%B0%E5%8C%97">詳細</button>
             </div>
           </div>
         </article>
@@ -467,7 +473,16 @@
           <div class="event-card">
             <h3>台北 → 台中</h3>
             <div class="event-meta">高鐵で移動</div>
-            <div class="transport">🚄 高鐵</div>
+            <div class="event-actions">
+              <a class="small-btn primary" target="_blank" rel="noopener" href="https://www.thsrc.com.tw/">時刻表・予約</a>
+              <button class="small-btn itinerary-detail-btn"
+                data-name="台北 → 台中" data-number="移動" data-time="17:30"
+                data-station="高鐵・約1時間以内"
+                data-menu="台北駅から高鐵で台中へ"
+                data-budget="乗車券を確認"
+                data-note="台中到着後、HiRiver Hotelへ移動。"
+                data-map="https://www.google.com/maps/search/?api=1&query=%E5%8F%B0%E4%B8%AD%E9%AB%98%E9%90%B5%E7%AB%99">詳細</button>
+            </div>
           </div>
         </article>
 
@@ -480,7 +495,7 @@
             <div class="event-actions">
               <a class="small-btn primary" target="_blank" rel="noopener"
                  href="https://www.google.com/maps/search/?api=1&query=%E6%B2%81%E5%9C%92%E6%98%A5%20%E5%8F%B0%E4%B8%AD">Googleマップ</a>
-              <a class="small-btn" href="#">詳細</a>
+              <button class="small-btn itinerary-detail-btn" data-name="沁園春" data-number="T206" data-time="19:00" data-station="台中・予約済み" data-menu="小籠包|寧波排骨|炒飯" data-budget="約500～900 TWD" data-note="8月7日19時に予約済み。" data-map="https://www.google.com/maps/search/?api=1&query=%E6%B2%81%E5%9C%92%E6%98%A5%20%E5%8F%B0%E4%B8%AD">詳細</button>
             </div>
           </div>
         </article>
@@ -675,6 +690,35 @@
   </main>
 
 
+
+  <div class="modal" id="itineraryModal" aria-hidden="true">
+    <div class="modal-sheet">
+      <div class="modal-top">
+        <div>
+          <div class="detail-number" id="itineraryModalNumber"></div>
+          <h2 id="itineraryModalName"></h2>
+          <div class="note" id="itineraryModalTime"></div>
+        </div>
+        <button class="close-btn" id="closeItineraryModal" aria-label="閉じる">×</button>
+      </div>
+      <div class="detail-section">
+        <dl class="detail-grid">
+          <dt>場所・移動</dt><dd id="itineraryModalStation"></dd>
+          <dt>予算</dt><dd id="itineraryModalBudget"></dd>
+        </dl>
+      </div>
+      <div class="detail-section">
+        <h3>おすすめ・内容</h3>
+        <div class="menu-list" id="itineraryModalMenu"></div>
+      </div>
+      <div class="detail-section">
+        <h3>メモ</h3>
+        <div class="detail-note" id="itineraryModalNote"></div>
+      </div>
+      <a class="map-btn modal-map" id="itineraryModalMap" target="_blank" rel="noopener">📍 Googleマップで開く</a>
+    </div>
+  </div>
+
   <div class="modal" id="foodModal" aria-hidden="true">
     <div class="modal-sheet">
       <div class="modal-top">
@@ -791,6 +835,40 @@
     document.getElementById('closeModal')?.addEventListener('click', closeFoodModal);
     foodModal?.addEventListener('click', e => {
       if(e.target === foodModal) closeFoodModal();
+    });
+
+
+    const itineraryModal = document.getElementById('itineraryModal');
+    document.querySelectorAll('.itinerary-detail-btn').forEach(button => {
+      button.addEventListener('click', () => {
+        document.getElementById('itineraryModalNumber').textContent = button.dataset.number;
+        document.getElementById('itineraryModalName').textContent = button.dataset.name;
+        document.getElementById('itineraryModalTime').textContent = button.dataset.time;
+        document.getElementById('itineraryModalStation').textContent = button.dataset.station;
+        document.getElementById('itineraryModalBudget').textContent = button.dataset.budget;
+        document.getElementById('itineraryModalNote').textContent = button.dataset.note;
+        document.getElementById('itineraryModalMap').href = button.dataset.map;
+        const menu = document.getElementById('itineraryModalMenu');
+        menu.innerHTML = '';
+        button.dataset.menu.split('|').forEach(item => {
+          const row = document.createElement('div');
+          row.className = 'menu-item';
+          row.textContent = item;
+          menu.appendChild(row);
+        });
+        itineraryModal.classList.add('open');
+        itineraryModal.setAttribute('aria-hidden','false');
+        document.body.style.overflow = 'hidden';
+      });
+    });
+    function closeItineraryModal(){
+      itineraryModal.classList.remove('open');
+      itineraryModal.setAttribute('aria-hidden','true');
+      document.body.style.overflow = '';
+    }
+    document.getElementById('closeItineraryModal')?.addEventListener('click', closeItineraryModal);
+    itineraryModal?.addEventListener('click', e => {
+      if(e.target === itineraryModal) closeItineraryModal();
     });
 
   </script>
