@@ -180,15 +180,17 @@
     .event-time{
       grid-column:1;
       padding-top:16px;
-      font-size:18px;font-weight:850;color:var(--gold);
+      font-size:16px;font-weight:850;color:var(--gold);
       text-align:right;letter-spacing:0;
       white-space:normal;
       line-height:1.15;
-      overflow-wrap:anywhere;
+      overflow-wrap:normal;
+      word-break:keep-all;
     }
     .event-time .time-start,
     .event-time .time-end{
       display:block;
+      white-space:nowrap;
     }
     .event-card{
       grid-column:3;
@@ -1188,7 +1190,8 @@
 
     function formatEventTime(value){
       const safe = escapeHtml(value);
-      const match = String(value).match(/^\s*(\d{1,2}:\d{2})\s*[-–—〜~]\s*(\d{1,2}:\d{2})\s*$/);
+      const text = String(value).trim();
+      const match = text.match(/^(\d{1,2}:\d{2})\s*[-–—〜~]\s*(\d{1,2}:\d{2})$/);
       if(!match) return safe;
       return `<span class="time-start">${escapeHtml(match[1])}</span><span class="time-end">–${escapeHtml(match[2])}</span>`;
     }
