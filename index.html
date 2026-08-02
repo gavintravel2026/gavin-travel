@@ -288,6 +288,27 @@
       border:1px solid rgba(241,195,108,.32);
       font-size:13px;font-weight:900;backdrop-filter:blur(8px)
     }
+
+    .google-photo-rating{
+      position:absolute;
+      right:12px;
+      bottom:10px;
+      z-index:4;
+      display:inline-flex;
+      align-items:center;
+      gap:5px;
+      padding:6px 9px;
+      border-radius:999px;
+      background:rgba(5,14,11,.82);
+      color:#fff4cf;
+      border:1px solid rgba(255,255,255,.16);
+      font-size:12px;
+      font-weight:900;
+      backdrop-filter:blur(8px);
+      white-space:nowrap;
+    }
+    .google-photo-rating .star{color:#f4b400}
+
     .food-rating{
       position:absolute;right:14px;bottom:12px;z-index:2;
       color:#ffe4a6;font-size:14px;font-weight:850
@@ -911,9 +932,14 @@
               data-search="${escapeHtml([item.id,item.name,item.category,item.region,...item.tags,...item.menu].join(' '))}">
               <div class="food-photo" style="background-image:url('${escapeHtml(photo)}')">
                 <span class="food-number">${escapeHtml(item.id)}</span>
-                <span class="food-rating">★★★★★</span>
+                
                 <button class="favorite-btn ${favoriteFoods.has(item.id) ? 'active' : ''}"
                   type="button" aria-label="お気に入り" data-food-id="${escapeHtml(item.id)}">★</button>
+                <span class="google-photo-rating">
+                  <span class="star">★</span>
+                  <span>${escapeHtml(item.rating || '—')}</span>
+                  <span>（${escapeHtml(item.reviews || '—')}件）</span>
+                </span>
               </div>
               <div class="food-body">
                 <h3>${escapeHtml(item.name)}</h3>
