@@ -1996,6 +1996,64 @@
     let managerMode = 'list';
     let managerEditingIndex = -1;
 
+    function extractStartMinutes(value){
+      const text = String(value || '').trim();
+
+      const exact = text.match(/(\d{1,2}):(\d{2})/);
+      if(exact){
+        return Number(exact[1]) * 60 + Number(exact[2]);
+      }
+
+      if(/早朝/.test(text)) return 5 * 60;
+      if(/朝/.test(text)) return 7 * 60;
+      if(/午前/.test(text)) return 10 * 60;
+      if(/昼/.test(text)) return 12 * 60;
+      if(/午後/.test(text)) return 14 * 60;
+      if(/夕方/.test(text)) return 17 * 60;
+      if(/夜/.test(text)) return 20 * 60;
+      if(/深夜/.test(text)) return 23 * 60 + 30;
+
+      return null;
+    }
+
+    function hasNextDayRollover(events){
+      let previous = null;
+      for(const event of events){
+        const current = extractStartMinutes(event.time);
+        if(current === null) continue;
+        if(previous !== null && previous >= 18 * 60 && current <= 5 * 60){
+          return true;
+        }
+        previous = current;
+      }
+      return false;
+    }
+
+    function sortEventsByTime(events){
+      const rollover = hasNextDayRollover(events);
+
+      const decorated = events.map((event,index) => {
+        let minutes = extractStartMinutes(event.time);
+
+        if(minutes === null){
+          return {event,index,key: 100000 + index};
+        }
+
+        if(rollover && minutes <= 5 * 60){
+          minutes += 24 * 60;
+        }
+
+        return {event,index,key: minutes};
+      });
+
+      decorated.sort((a,b) => {
+        if(a.key !== b.key) return a.key - b.key;
+        return a.index - b.index;
+      });
+
+      events.splice(0, events.length, ...decorated.map(item => item.event));
+    }
+
     function buildCompactItinerary(){
       const compact = {};
 
@@ -2217,6 +2275,8 @@
           photo:''
         });
       }
+
+      sortEventsByTime(dayData.events);
 
       if(!persistItinerary()){
         window.alert('端末への保存に失敗しました。保存容量を確保してから、もう一度お試しください。');
