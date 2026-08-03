@@ -1626,9 +1626,21 @@
 
         itineraryData[day].events = saved[day].events.map(savedEvent => {
           const original = savedEvent._sourceKey ? originals.get(savedEvent._sourceKey) : null;
-          return original
-            ? {...JSON.parse(JSON.stringify(original)), ...savedEvent}
-            : {...savedEvent};
+
+          if (original) {
+            // 端末内の旧保存データには、過去に誤混入した店番号・料理・写真なども残っている。
+            // 編集画面で変更できる項目だけを引き継ぎ、その他は修正済みHTMLの元データを使う。
+            const restored = JSON.parse(JSON.stringify(original));
+            ['time', 'name', 'meta'].forEach(key => {
+              if (Object.prototype.hasOwnProperty.call(savedEvent, key)) {
+                restored[key] = savedEvent[key];
+              }
+            });
+            return restored;
+          }
+
+          // ユーザーが新規追加した予定は元データがないため、そのまま復元する。
+          return {...savedEvent};
         });
       });
     }
