@@ -400,6 +400,41 @@
       font-size:17px;line-height:1.35
     }
     .detail-note{font-size:16px;line-height:1.65;color:#d7dfda}
+
+    .food-detail-photo{
+      width:100%;
+      height:210px;
+      border-radius:18px;
+      object-fit:cover;
+      background:#163227;
+      margin:4px 0 16px;
+    }
+    .food-rating-row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      padding:13px 14px;
+      border-radius:15px;
+      background:#142c22;
+      margin-bottom:14px;
+    }
+    .food-rating-main{font-weight:900;color:#f4d27a}
+    .food-rating-reviews{color:var(--muted);font-size:13px}
+    .order-checklist{display:grid;gap:9px}
+    .order-check{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding:11px 12px;
+      border-radius:13px;
+      background:#142c22;
+      border:1px solid rgba(255,255,255,.06);
+    }
+    .order-check input{width:20px;height:20px;accent-color:#d6b55b}
+    .detail-link-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .detail-link-grid .map-btn{margin:0;text-align:center}
+
     .modal-map{margin-top:20px}
     .detail-grid{
       display:grid;grid-template-columns:92px 1fr;gap:10px 12px;
@@ -871,17 +906,39 @@
         <button class="close-btn" id="closeModal" aria-label="閉じる">×</button>
       </div>
 
+      <img class="food-detail-photo" id="modalPhoto" alt="店舗・料理写真">
+
+      <div class="food-rating-row" id="modalRatingRow">
+        <div class="food-rating-main" id="modalRating"></div>
+        <div class="food-rating-reviews" id="modalReviews"></div>
+      </div>
+
+      <div class="detail-section">
+        <dl class="detail-grid">
+          <dt>ジャンル</dt><dd id="modalCategory"></dd>
+          <dt>予算</dt><dd id="modalBudget"></dd>
+        </dl>
+      </div>
+
       <div class="detail-section">
         <h3>おすすめメニュー</h3>
         <div class="menu-list" id="modalMenu"></div>
       </div>
 
       <div class="detail-section">
-        <h3>メモ</h3>
+        <h3>チャッピーメモ</h3>
         <div class="detail-note" id="modalNote"></div>
       </div>
 
-      <a class="map-btn modal-map" id="modalMap" target="_blank" rel="noopener">📍 Googleマップで開く</a>
+      <div class="detail-section">
+        <h3>注文メモ</h3>
+        <div class="order-checklist" id="modalChecklist"></div>
+      </div>
+
+      <div class="detail-link-grid">
+        <a class="map-btn modal-map" id="modalMap" target="_blank" rel="noopener">📍 Googleマップ</a>
+        <a class="map-btn modal-map" id="modalRoute" target="_blank" rel="noopener">🧭 現在地から</a>
+      </div>
     </div>
   </div>
 
@@ -929,6 +986,15 @@
     const modalMenu = document.getElementById('modalMenu');
     const modalNote = document.getElementById('modalNote');
     const modalMap = document.getElementById('modalMap');
+    const modalRoute = document.getElementById('modalRoute');
+    const modalPhoto = document.getElementById('modalPhoto');
+    const modalRatingRow = document.getElementById('modalRatingRow');
+    const modalRating = document.getElementById('modalRating');
+    const modalReviews = document.getElementById('modalReviews');
+    const modalCategory = document.getElementById('modalCategory');
+    const modalBudget = document.getElementById('modalBudget');
+    const modalChecklist = document.getElementById('modalChecklist');
+    const foodChecklistKey = 'gavinFoodChecklist';
 
     function restaurantPhotoUrl(item){
       if(item?.photo) return item.photo;
@@ -1015,6 +1081,11 @@
                     data-menu="${escapeHtml(item.menu.join('|'))}"
                     data-note="${escapeHtml(item.note || `${item.category}としてグルメブックに登録済み。`)}"
                     data-budget="${escapeHtml(item.budget || '現地確認')}"
+                    data-category="${escapeHtml(item.category)}"
+                    data-rating="${escapeHtml(item.rating || '')}"
+                    data-reviews="${escapeHtml(item.reviews || '')}"
+                    data-photo="${escapeHtml(photo)}"
+                    data-route="${escapeHtml(item.walk || `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(item.name)}&travelmode=walking`)}"
                     data-map="${escapeHtml(map)}">詳細</button>
                 </div>
               </div>
@@ -1054,13 +1125,47 @@
           modalRegion.textContent = button.dataset.region;
           modalNote.textContent = button.dataset.note;
           modalMap.href = button.dataset.map;
+          modalRoute.href = button.dataset.route;
+          modalPhoto.src = button.dataset.photo;
+          modalPhoto.alt = `${button.dataset.name}の店舗・料理写真`;
+          modalCategory.textContent = button.dataset.category;
+          modalBudget.textContent = button.dataset.budget;
           modalMenu.innerHTML = '';
+          modalChecklist.innerHTML = '';
 
-          button.dataset.menu.split('|').forEach(item => {
+          if(button.dataset.rating){
+            modalRatingRow.style.display = '';
+            modalRating.textContent = `★ ${button.dataset.rating}`;
+            modalReviews.textContent = `${button.dataset.reviews}件`;
+          }else{
+            modalRatingRow.style.display = 'none';
+          }
+
+          const storedChecklist = JSON.parse(localStorage.getItem(foodChecklistKey) || '{}');
+          const checkedItems = new Set(storedChecklist[button.dataset.number] || []);
+
+          button.dataset.menu.split('|').filter(Boolean).forEach(item => {
             const div = document.createElement('div');
             div.className = 'menu-item';
             div.textContent = item;
             modalMenu.appendChild(div);
+
+            const label = document.createElement('label');
+            label.className = 'order-check';
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.checked = checkedItems.has(item);
+            const span = document.createElement('span');
+            span.textContent = item;
+            checkbox.addEventListener('change', () => {
+              const current = new Set(JSON.parse(localStorage.getItem(foodChecklistKey) || '{}')[button.dataset.number] || []);
+              checkbox.checked ? current.add(item) : current.delete(item);
+              const all = JSON.parse(localStorage.getItem(foodChecklistKey) || '{}');
+              all[button.dataset.number] = [...current];
+              localStorage.setItem(foodChecklistKey, JSON.stringify(all));
+            });
+            label.append(checkbox, span);
+            modalChecklist.appendChild(label);
           });
 
           foodModal.classList.add('open');
