@@ -401,6 +401,80 @@
     }
     .detail-note{font-size:16px;line-height:1.65;color:#d7dfda}
 
+
+    .detail-status-grid{
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:10px;
+      margin:14px 0;
+    }
+    .detail-status-card{
+      padding:12px 13px;
+      border-radius:14px;
+      background:#142c22;
+      border:1px solid rgba(255,255,255,.06);
+    }
+    .detail-status-card small{
+      display:block;
+      color:var(--muted);
+      font-size:11px;
+      margin-bottom:4px;
+    }
+    .detail-status-card strong{
+      display:block;
+      font-size:14px;
+      line-height:1.45;
+    }
+    .ranking-list{
+      display:grid;
+      gap:8px;
+      margin:0;
+      padding:0;
+      list-style:none;
+    }
+    .ranking-list li{
+      display:grid;
+      grid-template-columns:30px 1fr;
+      gap:10px;
+      align-items:center;
+      padding:10px 12px;
+      border-radius:13px;
+      background:#142c22;
+      border:1px solid rgba(255,255,255,.06);
+    }
+    .ranking-badge{
+      width:28px;
+      height:28px;
+      display:grid;
+      place-items:center;
+      border-radius:50%;
+      background:#d6b55b;
+      color:#0d1b15;
+      font-weight:950;
+      font-size:12px;
+    }
+    .food-gallery{
+      display:grid;
+      grid-auto-flow:column;
+      grid-auto-columns:76%;
+      gap:10px;
+      overflow-x:auto;
+      padding-bottom:4px;
+      scroll-snap-type:x mandatory;
+    }
+    .food-gallery img{
+      width:100%;
+      height:145px;
+      object-fit:cover;
+      border-radius:15px;
+      scroll-snap-align:start;
+      background:#163227;
+    }
+    @media(max-width:480px){
+      .detail-status-grid{grid-template-columns:1fr 1fr}
+      .food-gallery{grid-auto-columns:84%}
+    }
+
     .food-detail-photo{
       width:100%;
       height:210px;
@@ -917,12 +991,50 @@
         <dl class="detail-grid">
           <dt>ジャンル</dt><dd id="modalCategory"></dd>
           <dt>予算</dt><dd id="modalBudget"></dd>
+          <dt>最寄エリア</dt><dd id="modalAccess"></dd>
         </dl>
+      </div>
+
+      <div class="detail-status-grid">
+        <div class="detail-status-card">
+          <small>営業時間</small>
+          <strong id="modalHours">現地確認</strong>
+        </div>
+        <div class="detail-status-card">
+          <small>定休日</small>
+          <strong id="modalClosed">現地確認</strong>
+        </div>
+        <div class="detail-status-card">
+          <small>支払い</small>
+          <strong id="modalPayment">現金推奨</strong>
+        </div>
+        <div class="detail-status-card">
+          <small>利用しやすさ</small>
+          <strong id="modalSolo">一人利用可</strong>
+        </div>
+        <div class="detail-status-card">
+          <small>予約</small>
+          <strong id="modalReservation">店舗確認</strong>
+        </div>
+        <div class="detail-status-card">
+          <small>混雑</small>
+          <strong id="modalCrowd">食事時間帯は混雑注意</strong>
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <h3>人気料理ランキング</h3>
+        <ol class="ranking-list" id="modalRanking"></ol>
       </div>
 
       <div class="detail-section">
         <h3>おすすめメニュー</h3>
         <div class="menu-list" id="modalMenu"></div>
+      </div>
+
+      <div class="detail-section">
+        <h3>料理写真</h3>
+        <div class="food-gallery" id="modalGallery"></div>
       </div>
 
       <div class="detail-section">
@@ -993,6 +1105,15 @@
     const modalReviews = document.getElementById('modalReviews');
     const modalCategory = document.getElementById('modalCategory');
     const modalBudget = document.getElementById('modalBudget');
+    const modalAccess = document.getElementById('modalAccess');
+    const modalHours = document.getElementById('modalHours');
+    const modalClosed = document.getElementById('modalClosed');
+    const modalPayment = document.getElementById('modalPayment');
+    const modalSolo = document.getElementById('modalSolo');
+    const modalReservation = document.getElementById('modalReservation');
+    const modalCrowd = document.getElementById('modalCrowd');
+    const modalRanking = document.getElementById('modalRanking');
+    const modalGallery = document.getElementById('modalGallery');
     const modalChecklist = document.getElementById('modalChecklist');
     const foodChecklistKey = 'gavinFoodChecklist';
 
@@ -1085,6 +1206,13 @@
                     data-rating="${escapeHtml(item.rating || '')}"
                     data-reviews="${escapeHtml(item.reviews || '')}"
                     data-photo="${escapeHtml(photo)}"
+                    data-access="${escapeHtml((item.tags || [item.region])[0] || item.region)}"
+                    data-hours="${escapeHtml(item.hours || '現地確認')}"
+                    data-closed="${escapeHtml(item.closed || '現地確認')}"
+                    data-payment="${escapeHtml(item.payment || '現金推奨')}"
+                    data-solo="${escapeHtml(item.solo || '一人利用可')}"
+                    data-reservation="${escapeHtml(item.reservation || '店舗確認')}"
+                    data-crowd="${escapeHtml(item.crowd || '食事時間帯は混雑注意')}"
                     data-route="${escapeHtml(item.walk || `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(item.name)}&travelmode=walking`)}"
                     data-map="${escapeHtml(map)}">詳細</button>
                 </div>
@@ -1130,7 +1258,16 @@
           modalPhoto.alt = `${button.dataset.name}の店舗・料理写真`;
           modalCategory.textContent = button.dataset.category;
           modalBudget.textContent = button.dataset.budget;
+          modalAccess.textContent = button.dataset.access;
+          modalHours.textContent = button.dataset.hours;
+          modalClosed.textContent = button.dataset.closed;
+          modalPayment.textContent = button.dataset.payment;
+          modalSolo.textContent = button.dataset.solo;
+          modalReservation.textContent = button.dataset.reservation;
+          modalCrowd.textContent = button.dataset.crowd;
           modalMenu.innerHTML = '';
+          modalRanking.innerHTML = '';
+          modalGallery.innerHTML = '';
           modalChecklist.innerHTML = '';
 
           if(button.dataset.rating){
@@ -1144,11 +1281,28 @@
           const storedChecklist = JSON.parse(localStorage.getItem(foodChecklistKey) || '{}');
           const checkedItems = new Set(storedChecklist[button.dataset.number] || []);
 
-          button.dataset.menu.split('|').filter(Boolean).forEach(item => {
+          const menuItems = button.dataset.menu.split('|').filter(Boolean);
+
+          menuItems.forEach((item,index) => {
+            const rank = document.createElement('li');
+            const badge = document.createElement('span');
+            badge.className = 'ranking-badge';
+            badge.textContent = index + 1;
+            const rankText = document.createElement('span');
+            rankText.textContent = item;
+            rank.append(badge, rankText);
+            modalRanking.appendChild(rank);
+
             const div = document.createElement('div');
             div.className = 'menu-item';
             div.textContent = item;
             modalMenu.appendChild(div);
+
+            const galleryImg = document.createElement('img');
+            galleryImg.loading = 'lazy';
+            galleryImg.alt = `${button.dataset.name} ${item}`;
+            galleryImg.src = `https://tse1.mm.bing.net/th?q=${encodeURIComponent(`${button.dataset.name} ${item} 料理写真 実物 -メニュー -看板`)}&w=900&h=600&c=7&rs=1&p=0`;
+            modalGallery.appendChild(galleryImg);
 
             const label = document.createElement('label');
             label.className = 'order-check';
