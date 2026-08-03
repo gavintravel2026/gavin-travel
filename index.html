@@ -339,6 +339,41 @@
       background:#173127;color:#fff7e8;font:inherit;
     }
     .manager-field textarea{min-height:110px;resize:vertical}
+
+    .manager-saved-notice{
+      position:absolute;
+      left:50%;
+      bottom:calc(24px + env(safe-area-inset-bottom));
+      z-index:20;
+      transform:translate(-50%,20px);
+      opacity:0;
+      pointer-events:none;
+      padding:10px 16px;
+      border-radius:999px;
+      background:#d6b55b;
+      color:#102018;
+      font-size:14px;
+      font-weight:950;
+      transition:.2s ease;
+    }
+    .manager-saved-notice.show{
+      opacity:1;
+      transform:translate(-50%,0);
+    }
+    .manager-form-actions{
+      position:sticky;
+      bottom:0;
+      z-index:10;
+      padding:12px 0 calc(8px + env(safe-area-inset-bottom));
+      background:linear-gradient(180deg,rgba(13,33,25,0),#0d2119 25%);
+    }
+    #managerSave{
+      position:relative;
+      z-index:12;
+      pointer-events:auto !important;
+      touch-action:manipulation;
+    }
+
     .manager-form-actions{
       display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:20px;
     }
@@ -1228,7 +1263,8 @@
       <div class="manager-day-label" id="managerDayLabel"></div>
       <div class="manager-list" id="managerList"></div>
 
-      <div class="manager-form-wrap" id="managerForm">
+      <div class="manager-saved-notice" id="managerSavedNotice">保存しました</div>
+<div class="manager-form-wrap" id="managerForm">
         <label class="manager-field">
           <span>時間</span>
           <input type="text" id="managerTime" placeholder="例：14:30～15:30">
@@ -2080,20 +2116,34 @@
       if(event.target === itineraryManager) closeManager();
     });
 
-    document.getElementById('managerSave').addEventListener('click', () => {
-      const events = activeDayEvents();
-      const time = managerTime.value.trim();
-      const name = managerName.value.trim();
-      const meta = managerMeta.value.trim();
+    function saveManagerEvent(event){
+      event?.preventDefault?.();
+      event?.stopPropagation?.();
 
-      if(!name){
-        alert('予定名を入力してください。');
-        managerName.focus();
-        return;
+      const dayData = itineraryData[currentSelectedDay];
+      if(!dayData || !Array.isArray(dayData.events)){
+        window.alert('この日の旅程データを読み込めませんでした。');
+        return false;
       }
 
-      if(managerMode === 'add'){
-        events.push({
+      const time = String(managerTime.value || '').trim();
+      const name = String(managerName.value || '').trim();
+      const meta = String(managerMeta.value || '').trim();
+
+      if(!name){
+        window.alert('予定名を入力してください。');
+        managerName.focus();
+        return false;
+      }
+
+      if(managerMode === 'edit' && managerEditingIndex >= 0 && dayData.events[managerEditingIndex]){
+        const target = dayData.events[managerEditingIndex];
+        target.time = time;
+        target.name = name;
+        target.meta = meta;
+        target.note = meta;
+      }else{
+        dayData.events.push({
           time,
           name,
           meta,
@@ -2109,16 +2159,33 @@
           walk:'',
           photo:''
         });
-      } else if(managerMode === 'edit' && managerEditingIndex >= 0 && events[managerEditingIndex]){
-        events[managerEditingIndex].time = time;
-        events[managerEditingIndex].name = name;
-        events[managerEditingIndex].meta = meta;
-        events[managerEditingIndex].note = meta;
       }
 
-      persistItinerary();
+      try{
+        persistItinerary();
+      }catch(error){
+        console.error(error);
+        window.alert('端末への保存に失敗しました。');
+        return false;
+      }
+
+      managerTime.blur();
+      managerName.blur();
+      managerMeta.blur();
       renderManagerList();
-    });
+      refreshAllItineraryViews();
+
+      const notice = document.getElementById('managerSavedNotice');
+      if(notice){
+        notice.classList.add('show');
+        setTimeout(() => notice.classList.remove('show'), 1600);
+      }
+      return false;
+    }
+
+    const managerSaveButton = document.getElementById('managerSave');
+    managerSaveButton.onclick = saveManagerEvent;
+    managerSaveButton.addEventListener('touchend', saveManagerEvent, {passive:false});
 
     document.getElementById('managerReset').addEventListener('click', () => {
       if(!confirm('追加・変更・並べ替え・削除をすべて元の旅程に戻しますか？')) return;
