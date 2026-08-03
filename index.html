@@ -216,6 +216,16 @@
       padding:12px;
     }
     .manager-overlay.open{display:block}
+
+    .manager-overlay,
+    .manager-overlay *{
+      pointer-events:auto;
+    }
+    body:has(.manager-overlay.open) .bottom-nav,
+    body:has(.manager-overlay.open) .ai-fab{
+      pointer-events:none !important;
+    }
+
     .manager-sheet{
       width:min(100%,720px);
       height:calc(100vh - 24px);
@@ -272,7 +282,7 @@
     .manager-list{
       flex:1 1 auto;
       overflow:auto;
-      padding:12px 16px 30px;
+      padding:12px 16px calc(120px + env(safe-area-inset-bottom));
     }
     .manager-item{
       display:grid;
@@ -2000,13 +2010,65 @@
             <div class="manager-meta">${escapeHtml(event.meta || '')}</div>
           </div>
           <div class="manager-actions">
-            <button type="button" class="manager-action" data-manager-action="up" data-index="${index}">↑ 上へ</button>
-            <button type="button" class="manager-action" data-manager-action="down" data-index="${index}">↓ 下へ</button>
-            <button type="button" class="manager-action" data-manager-action="edit" data-index="${index}">変更</button>
-            <button type="button" class="manager-action danger" data-manager-action="delete" data-index="${index}">削除</button>
+            <button type="button" class="manager-action manager-up" data-index="${index}">↑ 上へ</button>
+            <button type="button" class="manager-action manager-down" data-index="${index}">↓ 下へ</button>
+            <button type="button" class="manager-action manager-edit" data-index="${index}">変更</button>
+            <button type="button" class="manager-action danger manager-delete" data-index="${index}">削除</button>
           </div>
         </div>
       `).join('');
+
+      managerList.querySelectorAll('.manager-up').forEach(button => {
+        button.addEventListener('click', event => {
+          event.preventDefault();
+          event.stopPropagation();
+          const index = Number(button.dataset.index);
+          const currentEvents = activeDayEvents();
+          if(index <= 0) return;
+          [currentEvents[index - 1], currentEvents[index]] = [currentEvents[index], currentEvents[index - 1]];
+          persistItinerary();
+          renderManagerList();
+        });
+      });
+
+      managerList.querySelectorAll('.manager-down').forEach(button => {
+        button.addEventListener('click', event => {
+          event.preventDefault();
+          event.stopPropagation();
+          const index = Number(button.dataset.index);
+          const currentEvents = activeDayEvents();
+          if(index >= currentEvents.length - 1) return;
+          [currentEvents[index + 1], currentEvents[index]] = [currentEvents[index], currentEvents[index + 1]];
+          persistItinerary();
+          renderManagerList();
+        });
+      });
+
+      managerList.querySelectorAll('.manager-edit').forEach(button => {
+        button.addEventListener('click', event => {
+          event.preventDefault();
+          event.stopPropagation();
+          showManagerForm(Number(button.dataset.index));
+        });
+      });
+
+      managerList.querySelectorAll('.manager-delete').forEach(button => {
+        button.addEventListener('click', event => {
+          event.preventDefault();
+          event.stopPropagation();
+          const index = Number(button.dataset.index);
+          const currentEvents = activeDayEvents();
+          const target = currentEvents[index];
+          if(!target) return;
+
+          const approved = window.confirm(`「${target.name || 'この予定'}」を削除しますか？`);
+          if(!approved) return;
+
+          currentEvents.splice(index, 1);
+          persistItinerary();
+          renderManagerList();
+        });
+      });
     }
 
     document.getElementById('openItineraryManager').addEventListener('click', openManager);
@@ -2016,39 +2078,6 @@
 
     itineraryManager.addEventListener('click', event => {
       if(event.target === itineraryManager) closeManager();
-    });
-
-    managerList.addEventListener('click', event => {
-      const button = event.target.closest('[data-manager-action]');
-      if(!button) return;
-      const action = button.dataset.managerAction;
-      const index = Number(button.dataset.index);
-      const events = activeDayEvents();
-
-      if(action === 'up' && index > 0){
-        [events[index - 1], events[index]] = [events[index], events[index - 1]];
-        persistItinerary();
-        renderManagerList();
-      }
-
-      if(action === 'down' && index < events.length - 1){
-        [events[index + 1], events[index]] = [events[index], events[index + 1]];
-        persistItinerary();
-        renderManagerList();
-      }
-
-      if(action === 'edit'){
-        showManagerForm(index);
-      }
-
-      if(action === 'delete'){
-        const target = events[index];
-        if(confirm(`「${target?.name || 'この予定'}」を削除しますか？`)){
-          events.splice(index,1);
-          persistItinerary();
-          renderManagerList();
-        }
-      }
     });
 
     document.getElementById('managerSave').addEventListener('click', () => {
