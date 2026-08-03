@@ -338,6 +338,35 @@
       background:rgba(241,195,108,.11);color:var(--gold);
       font-size:13px;font-weight:800
     }
+
+    .food-menu-line{
+      margin:10px 0 8px;
+      color:#f4ead6;
+      font-size:14px;
+      line-height:1.5;
+    }
+    .food-menu-line b{
+      color:var(--gold);
+      margin-right:7px;
+      font-size:12px;
+    }
+    .food-card-meta{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+      margin:0 0 13px;
+      color:var(--muted);
+      font-size:13px;
+    }
+    .food-budget{
+      white-space:nowrap;
+      font-weight:800;
+    }
+    .food-card.compact .tag-row{
+      margin-bottom:9px;
+    }
+
     .food-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
     .food-actions .small-btn{min-height:52px}
     .empty-result{
@@ -939,7 +968,12 @@
           );
           const tags = [...item.tags];
           if(isToday && !tags.includes('選択日の旅程')) tags.unshift('選択日の旅程');
-          const map = mapSearchUrl(item.name);
+          const visibleTags = tags.slice(0,3);
+          const map = item.map || mapSearchUrl(item.name);
+          const menuText = (item.menu || []).slice(0,3).join('・') || '代表料理';
+          const budgetText = item.budget && item.budget !== '現地確認'
+            ? item.budget
+            : '予算は現地確認';
 
           return `
             <article class="food-card compact"
@@ -962,7 +996,14 @@
                 <h3>${escapeHtml(item.name)}</h3>
                 <div class="food-sub">${escapeHtml(item.region)}・${escapeHtml(item.category)}</div>
                 <div class="tag-row">
-                  ${tags.map(tag => `<span class="${tag === '選択日の旅程' ? 'today-badge' : 'food-tag'}">${escapeHtml(tag)}</span>`).join('')}
+                  ${visibleTags.map(tag => `<span class="${tag === '選択日の旅程' ? 'today-badge' : 'food-tag'}">${escapeHtml(tag)}</span>`).join('')}
+                </div>
+                <div class="food-menu-line">
+                  <b>おすすめ</b>${escapeHtml(menuText)}
+                </div>
+                <div class="food-card-meta">
+                  <span>${escapeHtml((item.tags || [item.region])[0] || item.region)}</span>
+                  <span class="food-budget">${escapeHtml(budgetText)}</span>
                 </div>
                 <div class="food-actions">
                   <a class="small-btn primary" target="_blank" rel="noopener"
@@ -972,7 +1013,8 @@
                     data-name="${escapeHtml(item.name)}"
                     data-region="${escapeHtml(item.region)}"
                     data-menu="${escapeHtml(item.menu.join('|'))}"
-                    data-note="${escapeHtml(item.category)}としてグルメブックに登録済み。"
+                    data-note="${escapeHtml(item.note || `${item.category}としてグルメブックに登録済み。`)}"
+                    data-budget="${escapeHtml(item.budget || '現地確認')}"
                     data-map="${escapeHtml(map)}">詳細</button>
                 </div>
               </div>
