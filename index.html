@@ -925,7 +925,7 @@
       <p class="sub">8月7日（金）・台北 → 台中</p>
 
       <div class="itinerary-editor-bar">
-        <button class="editor-main-btn" id="toggleItineraryEdit">予定を編集</button>
+        <button type="button" class="editor-main-btn" id="toggleItineraryEdit">予定を編集</button>
         <button class="editor-main-btn secondary" id="addItineraryEvent">＋ 予定追加</button>
       </div>
 
@@ -1173,8 +1173,8 @@
         <textarea id="editEventMeta" placeholder="説明"></textarea>
       </label>
       <div class="edit-sheet-actions">
-        <button class="editor-main-btn secondary" id="cancelEventEdit">キャンセル</button>
-        <button class="editor-main-btn" id="saveEventEdit">保存</button>
+        <button type="button" class="editor-main-btn secondary" id="cancelEventEdit">キャンセル</button>
+        <button type="button" class="editor-main-btn" id="saveEventEdit">保存</button>
       </div>
     </div>
   </div>
@@ -1724,7 +1724,8 @@
     }
 
     let itineraryEditMode = false;
-    let editingEventIndex = null;
+    let editingEventIndex = -1;
+    let eventEditorMode = 'add';
 
     function saveItineraryChanges(){
       localStorage.setItem(itineraryStorageKey, JSON.stringify(itineraryData));
@@ -1749,21 +1750,32 @@
       };
     }
 
-    function openEventEditor(index){
-      editingEventIndex = index;
-      const event = index === null ? createBasicEvent() : itineraryData[currentSelectedDay].events[index];
-      document.getElementById('itineraryEditTitle').textContent = index === null ? '予定を追加' : '予定を編集';
-      document.getElementById('editEventTime').value = event.time || '';
-      document.getElementById('editEventName').value = event.name || '';
-      document.getElementById('editEventMeta').value = event.meta || '';
+    function openEventEditor(index = -1){
+      const isEdit = Number.isInteger(index) && index >= 0;
+      eventEditorMode = isEdit ? 'edit' : 'add';
+      editingEventIndex = isEdit ? index : -1;
+
+      const dayData = itineraryData[currentSelectedDay];
+      if(!dayData || !Array.isArray(dayData.events)){
+        alert('この日の旅程データを読み込めませんでした。');
+        return;
+      }
+
+      const event = isEdit ? dayData.events[index] : createBasicEvent();
+      document.getElementById('itineraryEditTitle').textContent = isEdit ? '予定を編集' : '予定を追加';
+      document.getElementById('editEventTime').value = isEdit ? (event.time || '') : '';
+      document.getElementById('editEventName').value = isEdit ? (event.name || '') : '';
+      document.getElementById('editEventMeta').value = isEdit ? (event.meta || '') : '';
       document.getElementById('itineraryEditDialog').classList.add('open');
       document.getElementById('itineraryEditDialog').setAttribute('aria-hidden','false');
+      setTimeout(() => document.getElementById('editEventTime').focus(), 50);
     }
 
     function closeEventEditor(){
       document.getElementById('itineraryEditDialog').classList.remove('open');
       document.getElementById('itineraryEditDialog').setAttribute('aria-hidden','true');
-      editingEventIndex = null;
+      editingEventIndex = -1;
+      eventEditorMode = 'add';
     }
 
     function moveItineraryEvent(index,direction){
@@ -1931,7 +1943,10 @@
       renderItinerary(currentSelectedDay);
     });
 
-    document.getElementById('addItineraryEvent').addEventListener('click', () => openEventEditor(null));
+    document.getElementById('addItineraryEvent').addEventListener('click', event => {
+      event.preventDefault();
+      openEventEditor(-1);
+    });
     document.getElementById('cancelEventEdit').addEventListener('click', closeEventEditor);
 
     document.getElementById('itineraryEditDialog').addEventListener('click', event => {
@@ -1947,22 +1962,41 @@
         return;
       }
 
-      if(editingEventIndex === null){
+      const dayData = itineraryData[currentSelectedDay];
+      if(!dayData || !Array.isArray(dayData.events)){
+        alert('この日の旅程データを読み込めませんでした。');
+        return;
+      }
+
+      let addedIndex = -1;
+
+      if(eventEditorMode === 'add'){
         const newEvent = createBasicEvent();
         newEvent.time = time;
         newEvent.name = name;
         newEvent.meta = meta;
-        itineraryData[currentSelectedDay].events.push(newEvent);
+        dayData.events.push(newEvent);
+        addedIndex = dayData.events.length - 1;
+      } else if(editingEventIndex >= 0 && dayData.events[editingEventIndex]){
+        const targetEvent = dayData.events[editingEventIndex];
+        targetEvent.time = time;
+        targetEvent.name = name;
+        targetEvent.meta = meta;
       } else {
-        const event = itineraryData[currentSelectedDay].events[editingEventIndex];
-        event.time = time;
-        event.name = name;
-        event.meta = meta;
+        alert('編集対象を確認できませんでした。もう一度開き直してください。');
+        return;
       }
 
       saveItineraryChanges();
       closeEventEditor();
       renderItinerary(currentSelectedDay);
+
+      if(addedIndex >= 0){
+        requestAnimationFrame(() => {
+          const card = timeline.querySelector(`[data-event-key="${currentSelectedDay}-${addedIndex}"]`);
+          card?.scrollIntoView({behavior:'smooth', block:'center'});
+        });
+      }
     });
 
     renderItinerary(sessionStorage.getItem('gavinSelectedDay') || '7');
