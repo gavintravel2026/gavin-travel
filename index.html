@@ -2080,8 +2080,10 @@
           events: (dayData.events || []).map(event => {
             const copy = {...event};
 
-            // base64画像が保存容量を超える原因。画像は元データから復元する。
+            // base64画像や修復用の退避画像は保存容量を超える原因。
+            // どちらもHTML本体の元データから復元できるため、端末保存には含めない。
             delete copy.photo;
+            delete copy._archivedWrongPhoto;
 
             return copy;
           })
@@ -2269,6 +2271,9 @@
         return false;
       }
 
+      // 保存に失敗した場合に画面上だけ変更された状態を残さないため、変更前を退避する。
+      const eventsBeforeSave = JSON.parse(JSON.stringify(dayData.events));
+
       if(managerMode === 'edit' && managerEditingIndex >= 0 && dayData.events[managerEditingIndex]){
         const target = dayData.events[managerEditingIndex];
         target.time = time;
@@ -2297,7 +2302,8 @@
       sortEventsByTime(dayData.events);
 
       if(!persistItinerary()){
-        window.alert('端末への保存に失敗しました。保存容量を確保してから、もう一度お試しください。');
+        dayData.events.splice(0, dayData.events.length, ...eventsBeforeSave);
+        window.alert('端末への保存に失敗しました。変更は反映されていません。');
         return false;
       }
 
