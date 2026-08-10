@@ -2845,11 +2845,12 @@
     document.getElementById('exportDataBtn')?.addEventListener('click', () => {
       const payload = {
         app:'Gavin Travel',
-        version:'2.0.6',
+        version:'2.0.7',
         exportedAt:new Date().toISOString(),
         selectedDay:currentSelectedDay,
         favorites:[...favoriteFoods],
-        notes:itineraryNotes
+        notes:itineraryNotes,
+        itinerary:compactItinerarySnapshot()
       };
       const blob = new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
       const url = URL.createObjectURL(blob);
@@ -2858,7 +2859,7 @@
       link.download = 'gavin-travel-backup.json';
       link.click();
       URL.revokeObjectURL(url);
-      dataToolStatus.textContent = 'バックアップを書き出しました。';
+      dataToolStatus.textContent = '旅程を含む完全バックアップを書き出しました。';
     });
 
     document.getElementById('importDataBtn')?.addEventListener('click', () => {
@@ -2874,11 +2875,24 @@
         itineraryNotes = payload.notes && typeof payload.notes === 'object' ? payload.notes : {};
         saveJSON(STORAGE_KEYS.favorites,[...favoriteFoods]);
         saveJSON(STORAGE_KEYS.notes,itineraryNotes);
+
+        if(payload.itinerary && typeof payload.itinerary === 'object'){
+          restoreCompactItinerary(payload.itinerary);
+          Object.values(itineraryData).forEach(dayData => {
+            if(dayData && Array.isArray(dayData.events)) sortEventsByTime(dayData.events);
+          });
+          try{
+            localStorage.setItem(itineraryEditorStorageKey, JSON.stringify(compactItinerarySnapshot()));
+          }catch(error){
+            console.warn('旅程バックアップの保存に失敗しました', error);
+          }
+        }
+
         if(payload.selectedDay && itineraryData[payload.selectedDay]){
           renderItinerary(payload.selectedDay);
         }
         renderGourmetCards();
-        dataToolStatus.textContent = 'バックアップを読み込みました。';
+        dataToolStatus.textContent = '旅程を含むバックアップを読み込みました。';
       }catch(error){
         dataToolStatus.textContent = '読込に失敗しました。';
       }
