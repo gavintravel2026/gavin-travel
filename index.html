@@ -1805,7 +1805,20 @@
 
     let favoriteFoods = new Set(loadJSON(STORAGE_KEYS.favorites, []));
     let itineraryNotes = loadJSON(STORAGE_KEYS.notes, {});
-    let currentSelectedDay = sessionStorage.getItem('gavinSelectedDay') || '7';
+    function getAutomaticTravelDay(){
+      // 台湾時間の日付を基準に、旅行中は「今日」をトップ画面にする。
+      const taiwanDate = new Intl.DateTimeFormat('en-CA', {
+        timeZone:'Asia/Taipei', year:'numeric', month:'2-digit', day:'2-digit'
+      }).format(new Date());
+      const match = taiwanDate.match(/(\d{4})-(\d{2})-(\d{2})/);
+      if(!match) return '6';
+      const y = Number(match[1]), m = Number(match[2]), d = Number(match[3]);
+      if(y < 2026 || (y === 2026 && m < 8)) return '6';
+      if(y > 2026 || (y === 2026 && m > 8) || (y === 2026 && m === 8 && d > 12)) return '12';
+      if(y === 2026 && m === 8 && d >= 6 && d <= 12) return String(d);
+      return '6';
+    }
+    let currentSelectedDay = getAutomaticTravelDay();
     let currentModalEventKey = '';
 
     const dayMeta = {"6": {"label": "2026年8月6日（木）・名古屋から台湾へ", "short": "8月6日", "hotel": "NYS Loft Hotel", "hotelMeta": "名古屋・桃園<br>NYS Loft Hotel"}, "7": {"label": "2026年8月7日（金）・台北を食べて台中へ", "short": "8月7日", "hotel": "HiRiver Hotel", "hotelMeta": "台北・台中<br>HiRiver Hotel"}, "8": {"label": "2026年8月8日（土）・日月潭と彰化", "short": "8月8日", "hotel": "HiRiver Hotel", "hotelMeta": "日月潭・彰化<br>HiRiver Hotel"}, "9": {"label": "2026年8月9日（日）・台中朝市から台南へ", "short": "8月9日", "hotel": "Nan Sing Hotel", "hotelMeta": "台中・台南<br>Nan Sing Hotel"}, "10": {"label": "2026年8月10日（月）・台南 → 台北", "short": "8月10日", "hotel": "NYS Loft Hotel", "hotelMeta": "台南・台北<br>NYS Loft Hotel"}, "11": {"label": "2026年8月11日（火）・宜蘭・羅東日帰り", "short": "8月11日", "hotel": "NYS Loft Hotel", "hotelMeta": "宜蘭・羅東<br>NYS Loft Hotel"}, "12": {"label": "2026年8月12日（水）・台北最終日・空港へ", "short": "8月12日", "hotel": "荷物預け／深夜便", "hotelMeta": "台北<br>荷物預け／深夜便"}, "13": {"label": "2026年8月13日（木）・帰国", "short": "8月13日", "hotel": "—", "hotelMeta": "桃園・日本<br>—"}};
@@ -2551,7 +2564,7 @@
       renderManagerList();
     });
 
-    renderItinerary(sessionStorage.getItem('gavinSelectedDay') || '7');
+    renderItinerary(currentSelectedDay);
 
 
     // Online/offline state
