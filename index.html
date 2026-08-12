@@ -2069,15 +2069,15 @@
       const homeNextCard = document.getElementById('homeNextCard');
       if(next){
         homeNextTime.textContent = next.time;
-        homeNextName.textContent = next.name;
-        homeNextMeta.textContent = next.meta;
+        homeNextName.textContent = itineraryCardTitle(next);
+        homeNextMeta.textContent = itineraryCardMeta(next);
         const nextIndex = data.events.indexOf(next);
         const nextFoodId = /^T\d{3}$/.test(String(next.number || '')) ? next.number : '';
         if(homeNextCard){
           homeNextCard.dataset.homeDay = day;
           homeNextCard.dataset.homeEventIndex = String(nextIndex);
           homeNextCard.dataset.homeFoodId = nextFoodId;
-          homeNextCard.setAttribute('aria-label', `${next.name}を開く`);
+          homeNextCard.setAttribute('aria-label', `${itineraryCardTitle(next)}を開く`);
         }
         const nextMapUrl = eventMapUrl(next);
         homeNextMap.href = nextMapUrl;
@@ -2124,11 +2124,11 @@
             data-home-event-index="${eventIndex}"
             data-home-day="${escapeHtml(day)}"
             data-home-food-id="${isGourmet ? escapeHtml(event.number) : ''}"
-            aria-label="${escapeHtml(event.name)}を開く">
+            aria-label="${escapeHtml(itineraryCardTitle(event))}を開く">
             <div class="home-row-time">${escapeHtml(event.time)}</div>
             <div>
-              <div class="home-row-name">${escapeHtml(event.name)}</div>
-              <div class="home-row-meta">${escapeHtml(event.meta)}</div>
+              <div class="home-row-name">${escapeHtml(itineraryCardTitle(event))}</div>
+              ${itineraryCardMeta(event) ? `<div class="home-row-meta">${escapeHtml(itineraryCardMeta(event))}</div>` : ''}
             </div>
             <span class="home-row-chevron">›</span>
           </button>
