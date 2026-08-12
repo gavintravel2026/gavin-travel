@@ -2072,7 +2072,7 @@
         homeNextName.textContent = next.name;
         homeNextMeta.textContent = next.meta;
         const nextIndex = data.events.indexOf(next);
-        const nextFoodId = next.type === 'food' && /^T\d{3}$/.test(String(next.number || '')) ? next.number : '';
+        const nextFoodId = /^T\d{3}$/.test(String(next.number || '')) ? next.number : '';
         if(homeNextCard){
           homeNextCard.dataset.homeDay = day;
           homeNextCard.dataset.homeEventIndex = String(nextIndex);
@@ -2118,7 +2118,7 @@
       }
 
       homeScheduleList.innerHTML = data.events.map((event,eventIndex) => {
-        const isGourmet = event.type === 'food' && /^T\d{3}$/.test(String(event.number || ''));
+        const isGourmet = /^T\d{3}$/.test(String(event.number || ''));
         return `
           <button type="button" class="home-row home-row-link"
             data-home-event-index="${eventIndex}"
@@ -2267,6 +2267,49 @@ function renderMap(day){
       return '';
     }
 
+
+    function itineraryCardTitle(event){
+      let title = String(event?.name || '').trim();
+
+      // 詳細情報（注文、金額、説明）はカードから外す。
+      title = title.split('：')[0].trim();
+
+      // 店名に付いたT番号は詳細側に残し、カードでは店名を優先。
+      title = title.replace(/（T\d{3}）/g,'').trim();
+
+      // 行動説明を簡潔化。
+      title = title
+        .replace(/　iPhone 15 Pro バッテリー交換.*$/,'')
+        .replace(/　iPhone受取.*$/,'')
+        .replace(/ チェックイン・仮眠.*$/,'')
+        .replace(/ チェックアウト.*$/,'')
+        .replace(/ 帰着.*$/,'')
+        .replace(/で休憩.*$/,'')
+        .replace(/を散策・食べ歩き.*$/,'')
+        .replace(/を散策.*$/,'')
+        .replace(/へ。.*$/,'')
+        .trim();
+
+      return title || String(event?.name || '');
+    }
+
+    function itineraryCardMeta(event){
+      const type = String(event?.type || '');
+      const station = String(event?.station || '').trim();
+
+      if(station && station !== event?.meta && station !== '最終実績マスター'){
+        return station;
+      }
+
+      if(type === 'food') return '食事';
+      if(type === 'hotel') return 'ホテル';
+      if(type === 'transport') return '移動';
+      if(type === 'spot' || type === 'sightseeing') return '立ち寄り';
+      if(type === 'meeting') return '待ち合わせ';
+      if(type === 'flight') return 'フライト';
+      return '';
+    }
+
 function renderItinerary(day) {
       const data = itineraryData[day];
       currentSelectedDay = day;
@@ -2288,8 +2331,8 @@ function renderItinerary(day) {
           <div class="event-time">${formatEventTime(event.time)}</div>
           <div class="event-card ${photo ? 'has-photo' : ''}">
             ${photo ? `<img class="event-photo" src="${escapeHtml(photo)}" alt="${escapeHtml(event.name)}" loading="lazy">` : ''}
-            <h3>${escapeHtml(event.name)}</h3>
-            <div class="event-meta">${escapeHtml(event.meta)}</div>
+            <h3>${escapeHtml(itineraryCardTitle(event))}</h3>
+            ${itineraryCardMeta(event) ? `<div class="event-meta">${escapeHtml(itineraryCardMeta(event))}</div>` : ''}
             ${event.transportLinks?.length ? `
               <div class="transport-actions">
                 ${event.transportLinks.map(link => `
@@ -2364,7 +2407,8 @@ function renderItinerary(day) {
       document.getElementById('itineraryModalTime').textContent = button.dataset.time;
       document.getElementById('itineraryModalStation').textContent = button.dataset.station;
       document.getElementById('itineraryModalBudget').textContent = button.dataset.budget;
-      document.getElementById('itineraryModalNote').textContent = button.dataset.note;
+      document.getElementById('itineraryModalNote').textContent =
+        button.dataset.note || button.dataset.name || '';
       const itineraryModalMapBtn = document.getElementById('itineraryModalMap');
       if(validHttpUrl(button.dataset.map)){
         itineraryModalMapBtn.href = button.dataset.map;
