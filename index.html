@@ -902,7 +902,7 @@
     .tabs{
       position:fixed;left:50%;transform:translateX(-50%);bottom:0;
       width:min(100%,430px);
-      display:grid;grid-template-columns:repeat(5,1fr);
+      display:grid;grid-template-columns:repeat(6,1fr);
       padding:10px 10px calc(env(safe-area-inset-bottom) + 10px);
       background:rgba(4,13,10,.94);
       border-top:1px solid rgba(255,255,255,.06);
@@ -1120,12 +1120,13 @@
         <button class="filter-btn" data-filter="台中">台中</button>
         <button class="filter-btn" data-filter="宜蘭">宜蘭</button>
         <button class="filter-btn" data-filter="彰化">彰化</button>
+        <button class="filter-btn" data-filter="南投">南投</button>
         <button class="filter-btn" data-filter="台南">台南</button>
         <button class="filter-btn" data-filter="favorites">★ お気に入り</button>
       </div>
 
       <div class="food-list" id="foodList"></div>
-      <div class="source-note">グルメは正式マスター76店舗を基準に表示しています。評価・レビュー数は確認時点のスナップショットです。</div>
+      <div class="source-note">グルメは最終実績反映済み89店舗を基準に表示しています。評価・レビュー数は確認時点のスナップショットです。</div>
 
       <div class="empty-result" id="emptyResult">該当するお店がありません。</div>
     </section>
@@ -1537,6 +1538,15 @@
     })();
 
     const restaurantPhotoAuditNotes = {"T124":"長安西路29號の四海豆漿大王として照合","T208":"台中第二市場の老賴茶棧として照合","T130":"南京西路264號のLouisa Coffee建成圓環門市として照合","T213":"審計新村周辺画像だけではCAF’E de S’AIME店舗一致を断定できず未固定","T501":"彰化市南瑤路61巷1號の店舗は確認できたが、固定可能な画像URL未確保","T313":"羅東民權路49號の店舗は確認できたが、検索画像が台南店だったため未固定"};
+    (function ensureFinalActualGourmetEntries(){
+      const required = [{"id":"T127","name":"忠青商行 信義店","region":"台北","category":"魯肉飯・台湾料理","tags":["信義A13地下","訪問済み"],"menu":["忠青炸雞滷肉飯套餐"],"budget":"実績 295 TWD","note":"2026-08-07 12:42頃。忠青炸雞滷肉飯套餐 NT$268＋サービス料 NT$27。","map":"https://www.google.com/maps/search/?api=1&query=%E5%BF%A0%E9%9D%92%E5%95%86%E8%A1%8C+%E4%BF%A1%E7%BE%A9%E5%BA%97","walk":"","photo":"","day":"2026-08-07","rating":"","reviews":"","hours":"現地確認","closed":"現地確認"},{"id":"T128","name":"MATA Tofu Pudding（馬太豆花）","region":"台北","category":"豆花","tags":["信義","訪問済み"],"menu":["台灣綜合糰豆花"],"budget":"実績 120 TWD","note":"2026-08-07 14:00頃。台灣綜合糰豆花 NT$120。","map":"https://www.google.com/maps/search/?api=1&query=MATA+Tofu+Pudding+%E9%A6%AC%E5%A4%AA%E8%B1%86%E8%8A%B1+Taipei","walk":"","photo":"","day":"2026-08-07","rating":"","reviews":"","hours":"現地確認","closed":"現地確認"},{"id":"T215","name":"阿母手工蛋餅（第三市場）","region":"台中","category":"台湾朝食・蛋餅","tags":["第三市場","訪問済み"],"menu":["手工蛋餅"],"budget":"実績額未記録","note":"2026-08-08 08:40。第三市場で朝食。","map":"https://www.google.com/maps/search/?api=1&query=%E9%98%BF%E6%AF%8D%E6%89%8B%E5%B7%A5%E8%9B%8B%E9%A4%85+%E7%AC%AC%E4%B8%89%E5%B8%82%E5%A0%B4+%E5%8F%B0%E4%B8%AD","walk":"","photo":"","day":"2026-08-08","rating":"","reviews":"","hours":"現地確認","closed":"現地確認"},{"id":"T621","name":"Red Ant Seafood & Grill（紅螞蟻海鮮碳烤）","region":"台南","category":"海鮮・炭火焼","tags":["安平","訪問済み"],"menu":["海鮮","炭火焼"],"budget":"実績額未記録","note":"2026-08-09 18:30–20:10。台南在住の友人と夕食。","map":"https://www.google.com/maps/search/?api=1&query=Red+Ant+Seafood+%26+Grill+%E7%B4%85%E8%9E%9E%E8%9F%BB%E6%B5%B7%E9%AE%AE%E7%A2%B3%E7%83%A4+%E5%8F%B0%E5%8D%97","walk":"","photo":"","day":"2026-08-09","rating":"","reviews":"","hours":"現地確認","closed":"現地確認"}];
+      const byId = new Map(gourmetData.map(item => [item.id,item]));
+      required.forEach(item => {
+        if(byId.has(item.id)) Object.assign(byId.get(item.id), item);
+        else { gourmetData.push(item); byId.set(item.id,item); }
+      });
+    })();
+
     function restaurantPhotoUrl(item){
       if(item?.photo) return item.photo;
       const representativeDish = item.menu?.[0] || item.category || '料理';
@@ -2119,30 +2129,59 @@
       `).join("");
     }
 
-    function renderMap(day){
+    
+    function validHttpUrl(value){
+      return typeof value === 'string' && /^https?:\/\//i.test(value);
+    }
+
+    function eventMapUrl(event){
+      if(validHttpUrl(event?.primaryUrl)) return event.primaryUrl;
+      if(validHttpUrl(event?.map)) return event.map;
+      return '';
+    }
+
+    function cleanEventPlaceName(name){
+      return String(name || '')
+        .split('：')[0]
+        .replace(/（T\d{3}）/g,'')
+        .replace(/(到着|出発|帰着|チェックイン|チェックアウト|を出る|で休憩).*$/,'')
+        .trim();
+    }
+
+    function isMapDestination(event){
+      const url = eventMapUrl(event);
+      if(!url) return false;
+      if(['transport','flight','arrival'].includes(event.type)) return false;
+      const generic = /^(注文・会計|料理提供|ホテルへ戻り|タクシー移動)/;
+      if(generic.test(String(event.name || ''))) return false;
+      return true;
+    }
+
+function renderMap(day){
       const data = itineraryData[day];
       const meta = dayMeta[day];
       if(!data || !meta) return;
 
+      const destinations = (data.events || []).filter(isMapDestination);
       mapSubtitle.textContent = `${meta.short}の目的地`;
       mapDayTitle.textContent = meta.label.replace("2026年","").split("・")[0];
-      mapDayCount.textContent = `${data.events.length}件`;
+      mapDayCount.textContent = `${destinations.length}件`;
 
-      if(!data.events.length){
-        mapList.innerHTML = '<div class="empty-screen">この日の目的地はありません。</div>';
+      if(!destinations.length){
+        mapList.innerHTML = '<div class="empty-screen">この日の地図表示できる目的地はありません。</div>';
         return;
       }
 
-      mapList.innerHTML = data.events.map((event,index) => `
+      mapList.innerHTML = destinations.map((event,index) => `
         <article class="map-item">
           <div class="map-item-top">
             <div class="map-index">${index + 1}</div>
             <div class="map-copy">
-              <h3>${escapeHtml(event.name)}</h3>
+              <h3>${escapeHtml(cleanEventPlaceName(event.name) || event.name)}</h3>
               <p>${escapeHtml(event.time)}・${escapeHtml(event.meta)}</p>
             </div>
           </div>
-          <a class="map-btn" href="${escapeHtml(event.map)}" target="_blank" rel="noopener">
+          <a class="map-btn" href="${escapeHtml(eventMapUrl(event))}" target="_blank" rel="noopener">
             📍 Googleマップで開く
           </a>
         </article>
@@ -2270,8 +2309,14 @@
               </div>
             ` : `
               <div class="event-actions">
-                <a class="small-btn primary" target="_blank" rel="noopener"
-                   href="${escapeHtml(event.primaryUrl)}">${escapeHtml(event.primary)}</a>
+                ${validHttpUrl(event.primaryUrl) ? `
+                  <a class="small-btn primary" target="_blank" rel="noopener"
+                     href="${escapeHtml(event.primaryUrl)}">${escapeHtml(event.primary || 'Googleマップ')}</a>
+                ` : ''}
+                ${String(event.number || '').match(/^T\d{3}$/) ? `
+                  <button type="button" class="small-btn itinerary-gourmet-jump"
+                    data-food-id="${escapeHtml(event.number)}">グルメブック</button>
+                ` : ''}
                 <button class="small-btn itinerary-detail-btn"
                   data-name="${escapeHtml(event.name)}"
                   data-number="${escapeHtml(event.number)}"
@@ -2281,7 +2326,7 @@
                   data-budget="${escapeHtml(event.budget)}"
                   data-note="${escapeHtml(event.note)}"
                   data-event-key="${day}-${eventIndex}"
-                  data-map="${escapeHtml(event.map)}">詳細</button>
+                  data-map="${escapeHtml(eventMapUrl(event))}">詳細</button>
               </div>
             `}
           </div>
@@ -2311,7 +2356,14 @@
       document.getElementById('itineraryModalStation').textContent = button.dataset.station;
       document.getElementById('itineraryModalBudget').textContent = button.dataset.budget;
       document.getElementById('itineraryModalNote').textContent = button.dataset.note;
-      document.getElementById('itineraryModalMap').href = button.dataset.map;
+      const itineraryMapButton = document.getElementById('itineraryModalMap');
+      if(validHttpUrl(button.dataset.map)){
+        itineraryMapButton.href = button.dataset.map;
+        itineraryMapButton.style.display = '';
+      }else{
+        itineraryMapButton.removeAttribute('href');
+        itineraryMapButton.style.display = 'none';
+      }
       currentModalEventKey = button.dataset.eventKey || `${currentSelectedDay}-${button.dataset.time}-${button.dataset.name}`;
       document.getElementById('itineraryUserNote').value = itineraryNotes[currentModalEventKey] || '';
       document.getElementById('noteSavedMessage').textContent = '';
@@ -2476,7 +2528,8 @@
     }
 
     function refreshAllItineraryViews(){
-      renderItinerary(currentSelectedDay);
+      window.personalPhotos = window.personalPhotos || [];
+    renderItinerary(currentSelectedDay);
       if(typeof renderHome === 'function') renderHome(currentSelectedDay);
       if(typeof renderMap === 'function') renderMap(currentSelectedDay);
       if(typeof renderGourmetCards === 'function') renderGourmetCards();
@@ -3054,8 +3107,8 @@
       const events = itineraryData[currentSelectedDay]?.events || [];
 
       const destinations = events
-        .filter(event => ['food','spot','hotel'].includes(event.type))
-        .map(event => event.name)
+        .filter(isMapDestination)
+        .map(event => cleanEventPlaceName(event.name))
         .filter(Boolean);
 
       if(!destinations.length){
@@ -3099,6 +3152,8 @@
       const foodId = button.dataset.foodId || '';
       const gourmetNav = document.querySelector('.tab[data-screen="gourmet"]');
       if(gourmetNav) gourmetNav.click();
+      const allFilter = document.querySelector('.filter-btn[data-filter="all"]');
+      allFilter?.click();
       const search = document.getElementById('foodSearch');
       if(search){
         search.value = foodId;
@@ -3115,7 +3170,7 @@
     const PHOTO_DB_NAME = 'GavinTravelPhotos';
     const PHOTO_DB_VERSION = 1;
     const PHOTO_STORE = 'photos';
-    let personalPhotos = [];
+    window.personalPhotos = window.personalPhotos || [];
     let activePhotoId = null;
 
     function photoDbOpen(){
@@ -3163,13 +3218,15 @@
         await photoDbPut(record);
       }
       await refreshPhotoAlbum();
-      renderItinerary(currentSelectedDay);
+      if(typeof renderItinerary === 'function' && currentSelectedDay && itineraryData[currentSelectedDay]){
+        renderItinerary(currentSelectedDay);
+      }
     }
     function photoUrl(photo){ return URL.createObjectURL(photo.blob); }
     function filteredPhotos(){
       const q=(document.getElementById('photoSearchInput')?.value||'').trim().toLowerCase();
       const day=document.getElementById('photoDayFilter')?.value||'all';
-      return personalPhotos.filter(p=>(day==='all'||p.day===day) && (!q||[p.title,p.eventName,p.fileName,`8/${p.day}`].join(' ').toLowerCase().includes(q)));
+      return window.personalPhotos.filter(p=>(day==='all'||p.day===day) && (!q||[p.title,p.eventName,p.fileName,`8/${p.day}`].join(' ').toLowerCase().includes(q)));
     }
     function selectPhoto(id){
       activePhotoId=id;
@@ -3179,7 +3236,7 @@
       const rows=filteredPhotos().sort((a,b)=>(a.day-b.day)||String(a.createdAt).localeCompare(String(b.createdAt)));
       const empty=document.getElementById('photoEmpty'), layout=document.getElementById('photoLayout');
       const count=document.getElementById('photoCountLabel');
-      if(count) count.textContent=`写真 ${personalPhotos.length}枚`;
+      if(count) count.textContent=`写真 ${window.personalPhotos.length}枚`;
       if(!rows.length){ if(empty) empty.hidden=false; if(layout) layout.hidden=true; return; }
       if(empty) empty.hidden=true; if(layout) layout.hidden=false;
       if(!rows.some(p=>p.id===activePhotoId)) activePhotoId=rows[0].id;
@@ -3205,10 +3262,11 @@
       document.getElementById('photoNextBtn').onclick=()=>selectPhoto(rows[(idx+1)%rows.length].id);
     }
     async function refreshPhotoAlbum(){
-      try{ personalPhotos=await photoDbAll(); renderPhotoAlbum(); }catch(error){ console.warn('写真データを読み込めませんでした',error); }
+      try{ window.personalPhotos=await photoDbAll(); renderPhotoAlbum(); }catch(error){ console.warn('写真データを読み込めませんでした',error); }
     }
     function eventRepresentativePhoto(day,eventIndex){
-      return personalPhotos.find(p=>p.eventKey===`${day}-${eventIndex}`) || null;
+      const photos = Array.isArray(window.personalPhotos) ? window.personalPhotos : [];
+      return photos.find(p=>p.eventKey===`${day}-${eventIndex}`) || null;
     }
     function openPhotoFromItinerary(photoId){
       document.querySelector('.tab[data-screen="photos"]')?.click();
