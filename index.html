@@ -1298,6 +1298,78 @@
         <div class="tool-status" id="dataToolStatus">お気に入りとメモを端末内に保存しています。</div>
       </div>
     </section>
+  
+
+    <section class="screen" id="photos">
+    <div class="photo-page">
+      <div class="photo-page-head">
+        <div>
+          <div class="eyebrow">TAIWAN 2026</div>
+          <h1>旅の写真</h1>
+          <p id="photoCountLabel">写真 0枚</p>
+        </div>
+        <button type="button" class="photo-add-btn" id="photoAddBtn">＋ 写真を追加</button>
+        <input type="file" id="photoAddInput" accept="image/*" multiple hidden>
+      </div>
+
+      <div class="photo-toolbar">
+        <input id="photoSearchInput" type="search" placeholder="日付・場所・予定名で検索">
+        <select id="photoDayFilter" aria-label="日付で絞り込み">
+          <option value="all">すべての日付</option>
+          <option value="6">8/6</option><option value="7">8/7</option><option value="8">8/8</option>
+          <option value="9">8/9</option><option value="10">8/10</option><option value="11">8/11</option><option value="12">8/12</option>
+        </select>
+      </div>
+
+      <div class="photo-empty" id="photoEmpty">
+        <div class="photo-empty-icon">📷</div>
+        <h2>写真を追加すると、ここに旅のアルバムができます</h2>
+        <p>写真は日付と旅程に紐づき、旅程カードには代表サムネイル1枚だけ表示します。</p>
+      </div>
+
+      <div class="photo-layout" id="photoLayout" hidden>
+        <div class="photo-gallery-pane">
+          <div id="photoGroups"></div>
+        </div>
+        <aside class="photo-detail-pane" id="photoDetailPane">
+          <div class="photo-detail-counter" id="photoDetailCounter"></div>
+          <img id="photoDetailImage" alt="">
+          <div class="photo-detail-body">
+            <h2 id="photoDetailTitle"></h2>
+            <div class="photo-detail-meta" id="photoDetailMeta"></div>
+            <p id="photoDetailNote"></p>
+            <div class="photo-detail-actions">
+              <button type="button" id="photoPrevBtn">‹ 前へ</button>
+              <button type="button" id="photoNextBtn">次へ ›</button>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <div class="photo-assign-overlay" id="photoAssignOverlay" aria-hidden="true">
+    <div class="photo-assign-sheet">
+      <div class="photo-assign-head">
+        <h2>写真を旅程に紐づける</h2>
+        <button type="button" id="photoAssignClose">×</button>
+      </div>
+      <p id="photoAssignCount"></p>
+      <label><span>日付</span>
+        <select id="photoAssignDay">
+          <option value="6">8/6</option><option value="7">8/7</option><option value="8">8/8</option>
+          <option value="9">8/9</option><option value="10">8/10</option><option value="11">8/11</option>
+          <option value="12">8/12</option><option value="13">8/13</option>
+        </select>
+      </label>
+      <label><span>旅程の予定</span><select id="photoAssignEvent"></select></label>
+      <div class="photo-assign-actions">
+        <button type="button" id="photoAssignCancel">キャンセル</button>
+        <button type="button" id="photoAssignSave">この予定に追加</button>
+      </div>
+    </div>
+  </div>
+
   </main>
 
 
@@ -1468,76 +1540,7 @@
     </div>
   </div>
 
-    <section class="screen" id="photos">
-    <div class="photo-page">
-      <div class="photo-page-head">
-        <div>
-          <div class="eyebrow">TAIWAN 2026</div>
-          <h1>旅の写真</h1>
-          <p id="photoCountLabel">写真 0枚</p>
-        </div>
-        <button type="button" class="photo-add-btn" id="photoAddBtn">＋ 写真を追加</button>
-        <input type="file" id="photoAddInput" accept="image/*" multiple hidden>
-      </div>
-
-      <div class="photo-toolbar">
-        <input id="photoSearchInput" type="search" placeholder="日付・場所・予定名で検索">
-        <select id="photoDayFilter" aria-label="日付で絞り込み">
-          <option value="all">すべての日付</option>
-          <option value="6">8/6</option><option value="7">8/7</option><option value="8">8/8</option>
-          <option value="9">8/9</option><option value="10">8/10</option><option value="11">8/11</option><option value="12">8/12</option>
-        </select>
-      </div>
-
-      <div class="photo-empty" id="photoEmpty">
-        <div class="photo-empty-icon">📷</div>
-        <h2>写真を追加すると、ここに旅のアルバムができます</h2>
-        <p>写真は日付と旅程に紐づき、旅程カードには代表サムネイル1枚だけ表示します。</p>
-      </div>
-
-      <div class="photo-layout" id="photoLayout" hidden>
-        <div class="photo-gallery-pane">
-          <div id="photoGroups"></div>
-        </div>
-        <aside class="photo-detail-pane" id="photoDetailPane">
-          <div class="photo-detail-counter" id="photoDetailCounter"></div>
-          <img id="photoDetailImage" alt="">
-          <div class="photo-detail-body">
-            <h2 id="photoDetailTitle"></h2>
-            <div class="photo-detail-meta" id="photoDetailMeta"></div>
-            <p id="photoDetailNote"></p>
-            <div class="photo-detail-actions">
-              <button type="button" id="photoPrevBtn">‹ 前へ</button>
-              <button type="button" id="photoNextBtn">次へ ›</button>
-            </div>
-          </div>
-        </aside>
-      </div>
-    </div>
-  </section>
-
-  <div class="photo-assign-overlay" id="photoAssignOverlay" aria-hidden="true">
-    <div class="photo-assign-sheet">
-      <div class="photo-assign-head">
-        <h2>写真を旅程に紐づける</h2>
-        <button type="button" id="photoAssignClose">×</button>
-      </div>
-      <p id="photoAssignCount"></p>
-      <label><span>日付</span>
-        <select id="photoAssignDay">
-          <option value="6">8/6</option><option value="7">8/7</option><option value="8">8/8</option>
-          <option value="9">8/9</option><option value="10">8/10</option><option value="11">8/11</option>
-          <option value="12">8/12</option><option value="13">8/13</option>
-        </select>
-      </label>
-      <label><span>旅程の予定</span><select id="photoAssignEvent"></select></label>
-      <div class="photo-assign-actions">
-        <button type="button" id="photoAssignCancel">キャンセル</button>
-        <button type="button" id="photoAssignSave">この予定に追加</button>
-      </div>
-    </div>
-  </div>
-<nav class="tabs" aria-label="メインメニュー">
+    <nav class="tabs" aria-label="メインメニュー">
     <button class="tab active" data-screen="home"><span class="icon">⌂</span><span>ホーム</span></button>
     <button class="tab" data-screen="itinerary"><span class="icon">🗓</span><span>旅程</span></button>
     <button class="tab" data-screen="gourmet"><span class="icon">🍜</span><span>グルメ</span></button>
