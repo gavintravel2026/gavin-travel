@@ -1181,7 +1181,6 @@
     }
 
 
-    /* Requested visibility: actual edit button uses the same orange/gold action color */
     .actual-edit-btn{
       background:#d6b55b !important;
       color:#102018 !important;
@@ -1189,65 +1188,20 @@
       font-weight:950 !important;
     }
 
-    /* Photo tab: remove top whitespace as far as possible */
-    #photos,
-    #photos.screen{
-      padding-top:0 !important;
-      margin-top:0 !important;
+
+    /* Photo screen bug fix: preserve original layout, remove only the erroneous giant blank region */
+    #photos.screen.active{
+      display:block !important;
+      min-height:0 !important;
+      height:auto !important;
     }
     #photos .photo-page{
-      margin-top:0 !important;
-      padding-top:0 !important;
-    }
-    #photos .photo-page-head{
-      margin-top:0 !important;
-      padding-top:0 !important;
-      margin-bottom:4px !important;
-    }
-    #photos .photo-page-head .eyebrow{
-      display:none !important;
-    }
-    #photos .photo-page-head h1{
-      margin-top:0 !important;
-      margin-bottom:0 !important;
-      line-height:1 !important;
-      font-size:22px !important;
-    }
-    #photos .photo-page-head p{
-      display:none !important;
-    }
-    #photos .photo-add-btn{
-      min-height:34px !important;
-      padding:6px 10px !important;
-    }
-    #photos .photo-toolbar{
-      margin-top:0 !important;
-      margin-bottom:4px !important;
-    }
-    #photos .photo-toolbar input,
-    #photos .photo-toolbar select{
-      min-height:36px !important;
+      min-height:0 !important;
+      height:auto !important;
     }
     #photos .photo-layout{
-      margin-top:0 !important;
-      gap:6px !important;
-    }
-    #photos .photo-day-group{
-      margin-top:0 !important;
-      margin-bottom:5px !important;
-    }
-    #photos .photo-day-title{
-      margin-top:0 !important;
-      margin-bottom:3px !important;
-      padding:5px 8px !important;
       min-height:0 !important;
-    }
-    #photos .photo-grid{
-      margin-top:0 !important;
-      gap:4px !important;
-    }
-    #photos .photo-detail-pane{
-      margin-top:4px !important;
+      height:auto !important;
     }
 
 </style>
@@ -4049,6 +4003,13 @@ document.addEventListener('click', event => {
     refreshPhotoAlbum();
 
 
+
+    // Ensure the album body is rendered whenever the Photos tab becomes active.
+    document.querySelectorAll('.tab[data-screen="photos"]').forEach(tab=>{
+      tab.addEventListener('click',()=>{
+        requestAnimationFrame(()=>{ refreshPhotoAlbum(); });
+      });
+    });
 </script>
 <div id="gourmetMasterAdditions" style="display:none">
         <article class="food-card" data-region="台北" data-search="T127 忠青商行 信義店 信義・台湾料理 忠青炸鶏ルーロウハンのセット">
