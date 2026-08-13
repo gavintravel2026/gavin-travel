@@ -2169,8 +2169,7 @@
       if(!saved || typeof saved !== 'object') return;
 
       Object.keys(saved).forEach(day => {
-        // 8/6〜8/13は最終実績マスターを優先し、古い端末保存データで上書きしない。
-        if(['6','7','8','9','10','11','12','13'].includes(day)) return;
+        // 保存済みの編集（追加・変更・並べ替え・削除）を全旅行日に復元する。
         if(!itineraryData[day] || !Array.isArray(saved[day]?.events)) return;
 
         const originals = new Map(
@@ -2225,11 +2224,7 @@
       localStorage.removeItem(previousBrokenStorageKey);
       const saved = JSON.parse(localStorage.getItem(itineraryEditorStorageKey) || 'null');
       restoreCompactItinerary(saved);
-      Object.values(itineraryData).forEach(dayData => {
-        if(dayData && Array.isArray(dayData.events)){
-          sortEventsByTime(dayData.events);
-        }
-      });
+      // 保存済みの配列順がユーザーの並べ替え結果なので、その順序を維持する。
     } catch(error) {
       console.warn('保存済み旅程を読み込めませんでした', error);
       localStorage.removeItem(itineraryEditorStorageKey);
@@ -3216,7 +3211,8 @@ function renderItinerary(day) {
         });
       }
 
-      sortEventsByTime(dayData.events);
+      // 手動並べ替えを尊重するため、自動時刻ソートは行わない。
+      // 新規追加は末尾、変更は現在位置を維持する。
 
       if(!persistItinerary()){
         dayData.events.splice(0, dayData.events.length, ...eventsBeforeSave);
@@ -3249,6 +3245,7 @@ function renderItinerary(day) {
       Object.assign(itineraryData, JSON.parse(JSON.stringify(originalItineraryData)));
       localStorage.removeItem(itineraryEditorStorageKey);
       renderManagerList();
+      refreshAllItineraryViews();
     });
 
     renderItinerary(currentSelectedDay);
