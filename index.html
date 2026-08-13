@@ -1107,6 +1107,79 @@
     }
     #photoAssignSave{background:#d6b55b;color:#102018;border-color:transparent}
 
+
+    /* Photo page compact mobile layout */
+    #photos .photo-page{
+      padding-top:6px !important;
+      padding-left:14px !important;
+      padding-right:14px !important;
+    }
+    #photos .photo-page-head{
+      margin-bottom:7px !important;
+      gap:8px !important;
+      align-items:center !important;
+    }
+    #photos .photo-page-head .eyebrow{
+      margin:0 !important;
+      line-height:1.1 !important;
+    }
+    #photos .photo-page-head h1{
+      margin:1px 0 1px !important;
+      line-height:1.15 !important;
+    }
+    #photos .photo-page-head p{
+      line-height:1.2 !important;
+    }
+    #photos .photo-add-btn{
+      min-height:38px !important;
+      padding:8px 11px !important;
+      border-radius:11px !important;
+    }
+    #photos .photo-toolbar{
+      margin-bottom:9px !important;
+      gap:6px !important;
+    }
+    #photos .photo-toolbar input,
+    #photos .photo-toolbar select{
+      min-height:39px !important;
+      border-radius:10px !important;
+    }
+    #photos .photo-day-group{
+      margin-bottom:11px !important;
+    }
+    #photos .photo-day-title{
+      margin-bottom:6px !important;
+      padding:7px 9px !important;
+    }
+    #photos .photo-grid{
+      gap:5px !important;
+    }
+    #photos .photo-detail-pane{
+      margin-top:8px !important;
+    }
+    #photos .photo-detail-counter{
+      padding:7px 10px !important;
+    }
+    #photos .photo-detail-body{
+      padding:10px !important;
+    }
+    #photos .photo-empty{
+      padding:20px 14px !important;
+      border-radius:14px !important;
+    }
+    #photos .photo-empty-icon{
+      font-size:28px !important;
+    }
+    #photos .photo-empty h2{
+      margin:5px 0 4px !important;
+      font-size:16px !important;
+    }
+    .actual-order-empty{
+      padding:8px 0 2px;
+      color:#9eb2a6;
+      font-size:13px;
+    }
+
 </style>
 </head>
 <body>
@@ -1430,7 +1503,7 @@
       <div class="detail-section" id="modalActualSection" style="display:none">
         <div class="actual-section-head">
           <h3>実際に注文した料理</h3>
-          <button type="button" class="actual-edit-btn" id="actualEditBtn">実績を編集</button>
+          <button type="button" class="actual-edit-btn" id="actualEditBtn">✎ 実績を編集・入力</button>
         </div>
         <div class="menu-list" id="modalActualMenu"></div>
         <div class="detail-note" id="modalActualMeta"></div>
@@ -1853,7 +1926,7 @@
           modalActualMenu.innerHTML = '';
           modalActualMeta.textContent = '';
           modalActualMeta.style.display = 'none';
-          modalActualSection.style.display = 'none';
+          modalActualSection.style.display = '';
           modalGallery.innerHTML = '';
           modalChecklist.innerHTML = '';
 
@@ -1867,8 +1940,6 @@
           const actualBudget = button.dataset.actualBudget || '';
 
           if(actualMenuItems.length || actualVisit || actualBudget){
-            modalActualSection.style.display = '';
-
             const summary = document.createElement('div');
             summary.className = 'actual-order-summary';
 
@@ -1909,6 +1980,11 @@
               row.append(bullet, dish);
               modalActualMenu.appendChild(row);
             });
+          }else{
+            const empty = document.createElement('div');
+            empty.className = 'actual-order-empty';
+            empty.textContent = '実績未入力';
+            modalActualMenu.appendChild(empty);
           }
 
           if(button.dataset.rating){
