@@ -1107,103 +1107,6 @@
     }
     #photoAssignSave{background:#d6b55b;color:#102018;border-color:transparent}
 
-
-    /* Photo page compact mobile layout */
-    #photos .photo-page{
-      padding-top:6px !important;
-      padding-left:14px !important;
-      padding-right:14px !important;
-    }
-    #photos .photo-page-head{
-      margin-bottom:7px !important;
-      gap:8px !important;
-      align-items:center !important;
-    }
-    #photos .photo-page-head .eyebrow{
-      margin:0 !important;
-      line-height:1.1 !important;
-    }
-    #photos .photo-page-head h1{
-      margin:1px 0 1px !important;
-      line-height:1.15 !important;
-    }
-    #photos .photo-page-head p{
-      line-height:1.2 !important;
-    }
-    #photos .photo-add-btn{
-      min-height:38px !important;
-      padding:8px 11px !important;
-      border-radius:11px !important;
-    }
-    #photos .photo-toolbar{
-      margin-bottom:9px !important;
-      gap:6px !important;
-    }
-    #photos .photo-toolbar input,
-    #photos .photo-toolbar select{
-      min-height:39px !important;
-      border-radius:10px !important;
-    }
-    #photos .photo-day-group{
-      margin-bottom:11px !important;
-    }
-    #photos .photo-day-title{
-      margin-bottom:6px !important;
-      padding:7px 9px !important;
-    }
-    #photos .photo-grid{
-      gap:5px !important;
-    }
-    #photos .photo-detail-pane{
-      margin-top:8px !important;
-    }
-    #photos .photo-detail-counter{
-      padding:7px 10px !important;
-    }
-    #photos .photo-detail-body{
-      padding:10px !important;
-    }
-    #photos .photo-empty{
-      padding:20px 14px !important;
-      border-radius:14px !important;
-    }
-    #photos .photo-empty-icon{
-      font-size:28px !important;
-    }
-    #photos .photo-empty h2{
-      margin:5px 0 4px !important;
-      font-size:16px !important;
-    }
-    .actual-order-empty{
-      padding:8px 0 2px;
-      color:#9eb2a6;
-      font-size:13px;
-    }
-
-
-    .actual-edit-btn{
-      background:#d6b55b !important;
-      color:#102018 !important;
-      border-color:transparent !important;
-      font-weight:950 !important;
-    }
-
-
-    /* Photo screen bug fix: preserve original layout, remove only the erroneous giant blank region */
-    #photos.screen.active{
-      display:block !important;
-      min-height:0 !important;
-      height:auto !important;
-    }
-    #photos .photo-page{
-      min-height:0 !important;
-      height:auto !important;
-    }
-    #photos .photo-layout{
-      min-height:0 !important;
-      height:auto !important;
-    }
-
 </style>
 </head>
 <body>
@@ -1527,7 +1430,7 @@
       <div class="detail-section" id="modalActualSection" style="display:none">
         <div class="actual-section-head">
           <h3>実際に注文した料理</h3>
-          <button type="button" class="actual-edit-btn" id="actualEditBtn">✎ 実績を編集・入力</button>
+          <button type="button" class="actual-edit-btn" id="actualEditBtn" style="background:#d6b55b;color:#102018;border-color:transparent;font-weight:950;">✎ 実績を編集・入力</button>
         </div>
         <div class="menu-list" id="modalActualMenu"></div>
         <div class="detail-note" id="modalActualMeta"></div>
@@ -1699,7 +1602,17 @@
 
         activeScreenId = target;
         requestAnimationFrame(() => {
-          window.scrollTo({top:screenScroll[target] || 0, behavior:'instant'});
+          if(target === 'photos'){
+            screenScroll.photos = 0;
+            window.scrollTo({top:0, behavior:'instant'});
+            if(typeof refreshPhotoAlbum === 'function'){
+              refreshPhotoAlbum().finally(() => {
+                requestAnimationFrame(() => window.scrollTo({top:0, behavior:'instant'}));
+              });
+            }
+          }else{
+            window.scrollTo({top:screenScroll[target] || 0, behavior:'instant'});
+          }
         });
       });
     });
@@ -1950,7 +1863,7 @@
           modalActualMenu.innerHTML = '';
           modalActualMeta.textContent = '';
           modalActualMeta.style.display = 'none';
-          modalActualSection.style.display = '';
+          modalActualSection.style.display = 'none';
           modalGallery.innerHTML = '';
           modalChecklist.innerHTML = '';
 
@@ -1964,6 +1877,8 @@
           const actualBudget = button.dataset.actualBudget || '';
 
           if(actualMenuItems.length || actualVisit || actualBudget){
+            modalActualSection.style.display = '';
+
             const summary = document.createElement('div');
             summary.className = 'actual-order-summary';
 
@@ -2004,11 +1919,6 @@
               row.append(bullet, dish);
               modalActualMenu.appendChild(row);
             });
-          }else{
-            const empty = document.createElement('div');
-            empty.className = 'actual-order-empty';
-            empty.textContent = '実績未入力';
-            modalActualMenu.appendChild(empty);
           }
 
           if(button.dataset.rating){
@@ -3973,10 +3883,11 @@ document.addEventListener('click', event => {
       return photos.find(p=>p.eventKey===`${day}-${eventIndex}`) || null;
     }
     function openPhotoFromItinerary(photoId){
+      screenScroll.photos = 0;
       document.querySelector('.tab[data-screen="photos"]')?.click();
       activePhotoId=photoId;
       renderPhotoAlbum();
-      window.scrollTo({top:0,behavior:'instant'});
+      requestAnimationFrame(()=>window.scrollTo({top:0,behavior:'instant'}));
     }
     document.getElementById('photoAddBtn')?.addEventListener('click',()=>document.getElementById('photoAddInput')?.click());
     document.getElementById('photoAddInput')?.addEventListener('change',e=>{
@@ -3996,20 +3907,15 @@ document.addEventListener('click', event => {
       const files=[...pendingPhotoFiles];
       await addPhotoFiles(files,day,index);
       closePhotoAssignment();
+      screenScroll.photos = 0;
       document.querySelector('.tab[data-screen="photos"]')?.click();
+      requestAnimationFrame(()=>window.scrollTo({top:0,behavior:'instant'}));
     });
     document.getElementById('photoSearchInput')?.addEventListener('input',renderPhotoAlbum);
     document.getElementById('photoDayFilter')?.addEventListener('change',renderPhotoAlbum);
     refreshPhotoAlbum();
 
 
-
-    // Ensure the album body is rendered whenever the Photos tab becomes active.
-    document.querySelectorAll('.tab[data-screen="photos"]').forEach(tab=>{
-      tab.addEventListener('click',()=>{
-        requestAnimationFrame(()=>{ refreshPhotoAlbum(); });
-      });
-    });
 </script>
 <div id="gourmetMasterAdditions" style="display:none">
         <article class="food-card" data-region="台北" data-search="T127 忠青商行 信義店 信義・台湾料理 忠青炸鶏ルーロウハンのセット">
