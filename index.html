@@ -1107,6 +1107,63 @@
     }
     #photoAssignSave{background:#d6b55b;color:#102018;border-color:transparent}
 
+
+    .event-actions{
+      display:grid !important;
+      grid-template-columns:minmax(0,1.45fr) minmax(74px,.85fr) 56px !important;
+      gap:8px !important;
+      align-items:stretch;
+    }
+    .event-actions .small-btn{
+      min-width:0;
+      padding-left:6px;
+      padding-right:6px;
+    }
+    .itinerary-photo-btn{
+      width:56px;
+      min-width:56px;
+      padding:0 !important;
+      font-size:22px !important;
+    }
+    .itinerary-photo-btn.has-photos{
+      border-color:rgba(214,181,91,.55);
+    }
+
+    .itinerary-photo-menu{
+      position:fixed;inset:0;z-index:1400;
+      display:none;align-items:flex-end;justify-content:center;
+      background:rgba(0,0,0,.58);
+    }
+    .itinerary-photo-menu.open{display:flex}
+    .itinerary-photo-menu-sheet{
+      width:min(430px,100%);
+      padding:14px 14px calc(14px + env(safe-area-inset-bottom));
+      box-sizing:border-box;
+    }
+    .itinerary-photo-menu-card{
+      background:#10271f;border:1px solid rgba(255,255,255,.1);
+      border-radius:18px;padding:8px;box-shadow:0 20px 50px rgba(0,0,0,.4);
+    }
+    .itinerary-photo-menu-title{
+      padding:8px 10px 10px;font-size:13px;color:#9eb2a6;
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    }
+    .itinerary-photo-menu-card button{
+      width:100%;min-height:50px;border:0;border-radius:12px;
+      background:#183329;color:#f8f1e7;font:inherit;font-weight:900;
+      margin-top:6px;
+    }
+    .itinerary-photo-menu-card button.primary{
+      background:#d6b55b;color:#102018;
+    }
+    .itinerary-photo-menu-card button:disabled{
+      opacity:.35;filter:saturate(.3);
+    }
+    .itinerary-photo-menu-cancel{
+      margin-top:8px !important;background:#10271f !important;
+      border:1px solid rgba(255,255,255,.1) !important;
+    }
+
 </style>
 </head>
 <body>
@@ -1374,7 +1431,20 @@
 
 
 
-  <div class="mypage-overlay" id="myPage" aria-hidden="true">
+  
+  <div class="itinerary-photo-menu" id="itineraryPhotoMenu" aria-hidden="true">
+    <div class="itinerary-photo-menu-sheet">
+      <div class="itinerary-photo-menu-card">
+        <div class="itinerary-photo-menu-title" id="itineraryPhotoMenuTitle"></div>
+        <button type="button" class="primary" id="itineraryPhotoAdd">写真を追加</button>
+        <button type="button" id="itineraryPhotoView">写真を見る</button>
+        <button type="button" class="itinerary-photo-menu-cancel" id="itineraryPhotoCancel">キャンセル</button>
+      </div>
+    </div>
+  </div>
+  <input type="file" id="itineraryPhotoInput" accept="image/*" multiple hidden>
+
+<div class="mypage-overlay" id="myPage" aria-hidden="true">
     <div class="mypage-sheet" role="dialog" aria-modal="true" aria-labelledby="myPageTitle">
       <div class="mypage-head">
         <div class="mypage-head-copy">
@@ -2682,6 +2752,13 @@ function renderItinerary(day) {
                   data-note="${escapeHtml(event.note)}"
                   data-event-key="${day}-${eventIndex}"
                   data-map="${escapeHtml(eventMapUrl(event))}">詳細</button>
+                <button type="button"
+                  class="small-btn itinerary-photo-btn ${eventPhotoCount(day,eventIndex) ? 'has-photos' : ''}"
+                  data-photo-day="${day}"
+                  data-photo-event-index="${eventIndex}"
+                  data-photo-event-key="${day}-${eventIndex}"
+                  data-photo-event-name="${escapeHtml(itineraryCardTitle(event))}"
+                  aria-label="${escapeHtml(itineraryCardTitle(event))}の写真">📷</button>
               </div>
             `}
           </div>
@@ -3840,10 +3917,17 @@ document.addEventListener('click', event => {
       }
     }
     function photoUrl(photo){ return URL.createObjectURL(photo.blob); }
+    let activePhotoEventFilter = '';
+    let itineraryPhotoProgrammaticOpen = false;
+
     function filteredPhotos(){
       const q=(document.getElementById('photoSearchInput')?.value||'').trim().toLowerCase();
       const day=document.getElementById('photoDayFilter')?.value||'all';
-      return window.personalPhotos.filter(p=>(day==='all'||p.day===day) && (!q||[p.title,p.eventName,p.fileName,`8/${p.day}`].join(' ').toLowerCase().includes(q)));
+      return window.personalPhotos.filter(p=>
+        (!activePhotoEventFilter || p.eventKey===activePhotoEventFilter) &&
+        (day==='all'||p.day===day) &&
+        (!q||[p.title,p.eventName,p.fileName,`8/${p.day}`].join(' ').toLowerCase().includes(q))
+      );
     }
     function selectPhoto(id){
       activePhotoId=id;
@@ -3885,6 +3969,14 @@ document.addEventListener('click', event => {
       const photos = Array.isArray(window.personalPhotos) ? window.personalPhotos : [];
       return photos.find(p=>p.eventKey===`${day}-${eventIndex}`) || null;
     }
+    function eventPhotos(day,eventIndex){
+      const key=`${day}-${eventIndex}`;
+      const photos=Array.isArray(window.personalPhotos) ? window.personalPhotos : [];
+      return photos.filter(p=>p.eventKey===key);
+    }
+    function eventPhotoCount(day,eventIndex){
+      return eventPhotos(day,eventIndex).length;
+    }
     function openPhotoFromItinerary(photoId){
       screenScroll.photos = 0;
       document.querySelector('.tab[data-screen="photos"]')?.click();
@@ -3916,6 +4008,97 @@ document.addEventListener('click', event => {
     });
     document.getElementById('photoSearchInput')?.addEventListener('input',renderPhotoAlbum);
     document.getElementById('photoDayFilter')?.addEventListener('change',renderPhotoAlbum);
+
+    let itineraryPhotoTarget = null;
+
+    function closeItineraryPhotoMenu(){
+      document.getElementById('itineraryPhotoMenu')?.classList.remove('open');
+      document.getElementById('itineraryPhotoMenu')?.setAttribute('aria-hidden','true');
+    }
+
+    function openItineraryPhotoMenu(day,eventIndex,eventName){
+      itineraryPhotoTarget={day:String(day),eventIndex:Number(eventIndex),eventName:eventName || ''};
+      const photos=eventPhotos(day,eventIndex);
+      const menu=document.getElementById('itineraryPhotoMenu');
+      const title=document.getElementById('itineraryPhotoMenuTitle');
+      const view=document.getElementById('itineraryPhotoView');
+      if(title) title.textContent=eventName || 'この予定の写真';
+      if(view) view.disabled=photos.length===0;
+      menu?.classList.add('open');
+      menu?.setAttribute('aria-hidden','false');
+    }
+
+    timeline.addEventListener('click',event=>{
+      const btn=event.target.closest('.itinerary-photo-btn');
+      if(!btn) return;
+      event.preventDefault();
+      event.stopPropagation();
+      openItineraryPhotoMenu(
+        btn.dataset.photoDay,
+        Number(btn.dataset.photoEventIndex),
+        btn.dataset.photoEventName || ''
+      );
+    });
+
+    document.getElementById('itineraryPhotoAdd')?.addEventListener('click',()=>{
+      if(!itineraryPhotoTarget) return;
+      closeItineraryPhotoMenu();
+      document.getElementById('itineraryPhotoInput')?.click();
+    });
+
+    document.getElementById('itineraryPhotoView')?.addEventListener('click',()=>{
+      if(!itineraryPhotoTarget) return;
+      const {day,eventIndex}=itineraryPhotoTarget;
+      const photos=eventPhotos(day,eventIndex);
+      if(!photos.length) return;
+      closeItineraryPhotoMenu();
+
+      activePhotoEventFilter=`${day}-${eventIndex}`;
+      itineraryPhotoProgrammaticOpen=true;
+
+      const search=document.getElementById('photoSearchInput');
+      if(search) search.value='';
+      const filter=document.getElementById('photoDayFilter');
+      if(filter) filter.value='all';
+
+      activePhotoId=photos[0].id;
+      screenScroll.photos=0;
+      document.querySelector('.tab[data-screen="photos"]')?.click();
+      itineraryPhotoProgrammaticOpen=false;
+      renderPhotoAlbum();
+      requestAnimationFrame(()=>window.scrollTo({top:0,behavior:'instant'}));
+    });
+
+    document.getElementById('itineraryPhotoCancel')?.addEventListener('click',closeItineraryPhotoMenu);
+    document.getElementById('itineraryPhotoMenu')?.addEventListener('click',event=>{
+      if(event.target.id==='itineraryPhotoMenu') closeItineraryPhotoMenu();
+    });
+
+    document.getElementById('itineraryPhotoInput')?.addEventListener('change',async event=>{
+      const files=[...(event.target.files || [])];
+      event.target.value='';
+      if(!files.length || !itineraryPhotoTarget) return;
+
+      const {day,eventIndex}=itineraryPhotoTarget;
+      await addPhotoFiles(files,day,eventIndex);
+      await refreshPhotoAlbum();
+
+      if(typeof renderItinerary==='function' && currentSelectedDay && itineraryData[currentSelectedDay]){
+        renderItinerary(currentSelectedDay);
+      }
+    });
+
+    // Manual Photos-tab opening returns to the full album.
+    document.querySelector('.tab[data-screen="photos"]')?.addEventListener('click',()=>{
+      if(itineraryPhotoProgrammaticOpen) return;
+      activePhotoEventFilter='';
+      const search=document.getElementById('photoSearchInput');
+      if(search) search.value='';
+      const filter=document.getElementById('photoDayFilter');
+      if(filter) filter.value='all';
+      requestAnimationFrame(()=>renderPhotoAlbum());
+    });
+
     refreshPhotoAlbum();
 
 
