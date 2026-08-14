@@ -4546,7 +4546,9 @@ document.addEventListener('click', event => {
 
     document.getElementById('photoDeleteConfirmBtn')?.addEventListener('click',async()=>{
       if(!activePhotoId) return;
+
       const deletingId=activePhotoId;
+      const currentIndex=photoViewerRows.findIndex(p=>p.id===deletingId);
       closePhotoDeleteConfirm();
 
       const url=photoObjectUrlCache.get(deletingId);
@@ -4559,8 +4561,24 @@ document.addEventListener('click', event => {
       await photoDbDelete(deletingId);
       window.personalPhotos=(window.personalPhotos||[]).filter(p=>p.id!==deletingId);
 
-      closePhotoViewer();
+      // Rebuild the viewer list from the current filter after deletion.
+      photoViewerRows=currentSortedPhotoRows();
+
+      // Refresh thumbnails/list immediately.
       renderPhotoAlbum(false);
+
+      if(photoViewerRows.length){
+        // Keep the popup open and show the next photo.
+        // If the deleted photo was the last one, show the new last photo.
+        const nextIndex=Math.min(
+          currentIndex >= 0 ? currentIndex : 0,
+          photoViewerRows.length-1
+        );
+        await renderPhotoViewer(nextIndex);
+      }else{
+        // Only close the popup when no photos remain in the current set.
+        closePhotoViewer();
+      }
 
       if(typeof renderItinerary==='function' && currentSelectedDay && itineraryData[currentSelectedDay]){
         renderItinerary(currentSelectedDay);
