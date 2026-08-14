@@ -2353,6 +2353,44 @@
       localStorage.removeItem(previousBrokenStorageKey);
       const saved = JSON.parse(localStorage.getItem(itineraryEditorStorageKey) || 'null');
       restoreCompactItinerary(saved);
+
+      // Data migration: 8/9 翌00:10「Nan Sing Hotel 帰着」は
+      // calendar date 8/10 00:10 が正しい。古い端末保存データでも必ず移動する。
+      {
+        const day9 = itineraryData['9']?.events || [];
+        const day10 = itineraryData['10']?.events || [];
+        const moved = [];
+        for(let i=day9.length-1;i>=0;i--){
+          const e=day9[i];
+          if(e?.name==='Nan Sing Hotel 帰着' && (e?.time==='翌00:10' || e?.time==='00:10')){
+            moved.unshift(...day9.splice(i,1));
+          }
+        }
+        if(moved.length){
+          moved.forEach(e=>{ e.time='00:10'; });
+          const already=day10.some(e=>e?.name==='Nan Sing Hotel 帰着' && e?.time==='00:10');
+          if(!already) day10.unshift(moved[0]);
+        }
+        // Remove accidental duplicates in 8/10.
+        let seen=false;
+        for(let i=day10.length-1;i>=0;i--){
+          const e=day10[i];
+          if(e?.name==='Nan Sing Hotel 帰着'){
+            if(!seen){ e.time='00:10'; seen=true; }
+            else day10.splice(i,1);
+          }
+        }
+        if(seen){
+          const idx=day10.findIndex(e=>e?.name==='Nan Sing Hotel 帰着');
+          if(idx>0){
+            const [e]=day10.splice(idx,1);
+            day10.unshift(e);
+          }
+        }
+        // Persist migrated state immediately so refresh does not resurrect the old placement.
+        try{ persistItinerary(); }catch(_){}
+      }
+
       // 保存済みの配列順がユーザーの並べ替え結果なので、その順序を維持する。
     } catch(error) {
       console.warn('保存済み旅程を読み込めませんでした', error);
