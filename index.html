@@ -1300,6 +1300,14 @@
       white-space:normal;
       text-align:center;
     }
+
+    .mypage-update-info{
+      margin-top:6px;
+      font-size:11px;
+      line-height:1.45;
+      color:#9eb2a6;
+      font-weight:700;
+    }
 </style>
 </head>
 <body>
@@ -1617,6 +1625,10 @@
           <div>
             <h2 id="myPageTitle">マイページ</h2>
             <p>travel log</p>
+            <div class="mypage-update-info">
+              <div>アプリ更新：<span id="appUpdatedAt">2026/08/14 14:41</span></div>
+              <div>データ最終更新：<span id="dataUpdatedAt">—</span></div>
+            </div>
           </div>
         </div>
         <button type="button" class="close-btn" id="closeMyPage" aria-label="閉じる">×</button>
@@ -3269,6 +3281,7 @@ function renderItinerary(day) {
           if(index <= 0) return;
           [currentEvents[index - 1], currentEvents[index]] = [currentEvents[index], currentEvents[index - 1]];
           persistItinerary();
+          markDataUpdated();
           renderManagerList();
         });
       });
@@ -3282,6 +3295,7 @@ function renderItinerary(day) {
           if(index >= currentEvents.length - 1) return;
           [currentEvents[index + 1], currentEvents[index]] = [currentEvents[index], currentEvents[index + 1]];
           persistItinerary();
+          markDataUpdated();
           renderManagerList();
         });
       });
@@ -3308,6 +3322,7 @@ function renderItinerary(day) {
 
           currentEvents.splice(index, 1);
           persistItinerary();
+          markDataUpdated();
           renderManagerList();
         });
       });
@@ -3444,6 +3459,30 @@ function renderItinerary(day) {
       const file=event.target.files?.[0]; if(file) await importCompleteBackup(file); event.target.value='';
     });
 
+
+    const DATA_UPDATED_AT_KEY='travelLogDataUpdatedAt';
+
+    function formatUpdateDate(date){
+      const d=date instanceof Date ? date : new Date(date);
+      if(Number.isNaN(d.getTime())) return '—';
+      const pad=n=>String(n).padStart(2,'0');
+      return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+
+    function refreshDataUpdatedAt(){
+      const el=document.getElementById('dataUpdatedAt');
+      if(!el) return;
+      const saved=localStorage.getItem(DATA_UPDATED_AT_KEY);
+      el.textContent=saved ? formatUpdateDate(saved) : '—';
+    }
+
+    function markDataUpdated(){
+      localStorage.setItem(DATA_UPDATED_AT_KEY,new Date().toISOString());
+      refreshDataUpdatedAt();
+    }
+
+    refreshDataUpdatedAt();
+
     document.getElementById('openItineraryManager').addEventListener('click', openManager);
     document.getElementById('closeItineraryManager').addEventListener('click', closeManager);
     document.getElementById('managerAdd').addEventListener('click', () => showManagerForm(-1));
@@ -3529,6 +3568,7 @@ function renderItinerary(day) {
         return false;
       }
 
+      markDataUpdated();
       managerTime.blur();
       managerName.blur();
       managerMeta.blur();
@@ -4342,6 +4382,7 @@ document.addEventListener('click', event => {
         const exif=await extractPhotoExif(record);
         Object.assign(record,exif,{exifScanned:true});
         await photoDbPut(record);
+        markDataUpdated();
       }
       await refreshPhotoAlbum();
       if(typeof renderItinerary==='function' && currentSelectedDay && itineraryData[currentSelectedDay]){
@@ -4972,6 +5013,7 @@ document.addEventListener('click', event => {
       photoBlobLoadPromises.delete(deletingId);
 
       await photoDbDelete(deletingId);
+      markDataUpdated();
       window.personalPhotos=(window.personalPhotos||[]).filter(p=>p.id!==deletingId);
 
       // Rebuild the viewer list from the current filter after deletion.
