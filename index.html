@@ -3062,17 +3062,14 @@ function renderItinerary(day) {
     }
 
     function sortEventsByTime(events){
-      const rollover = hasNextDayRollover(events);
-
+      // Each itinerary tab represents one calendar date.
+      // Therefore 01:00–05:00 entries belong at the start of that date,
+      // not after the evening entries.
       const decorated = events.map((event,index) => {
-        let minutes = extractStartMinutes(event.time);
+        const minutes = extractStartMinutes(event.time);
 
         if(minutes === null){
           return {event,index,key: 100000 + index};
-        }
-
-        if(rollover && minutes <= 5 * 60){
-          minutes += 24 * 60;
         }
 
         return {event,index,key: minutes};
