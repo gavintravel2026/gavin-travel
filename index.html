@@ -1210,6 +1210,81 @@
     .photo-audit-row strong{white-space:nowrap}
     .photo-audit-done{width:100%;min-height:44px;margin-top:14px;border:0;border-radius:12px;background:#d6b55b;color:#102018;font:inherit;font-weight:950}
 
+
+    /* Photo list virtualization */
+    .photo-layout{grid-template-columns:1fr !important}
+    .photo-load-sentinel{
+      height:54px;display:flex;align-items:center;justify-content:center;
+      color:#9eb2a6;font-size:12px
+    }
+
+    /* Photo popup viewer */
+    .photo-viewer-overlay{
+      position:fixed;inset:0;z-index:1700;display:none;
+      background:rgba(0,0,0,.94);align-items:center;justify-content:center;
+      padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)
+    }
+    .photo-viewer-overlay.open{display:flex}
+    .photo-viewer{
+      width:100%;height:100%;display:grid;
+      grid-template-rows:auto minmax(0,1fr) auto;
+      position:relative;color:#fff
+    }
+    .photo-viewer-close{
+      position:absolute;right:14px;top:10px;z-index:3;
+      width:42px;height:42px;border:0;border-radius:50%;
+      background:rgba(20,35,29,.88);color:#fff;font-size:28px
+    }
+    .photo-viewer-counter{
+      min-height:44px;padding:14px 64px 8px 18px;
+      font-size:13px;color:#d6b55b;font-weight:900
+    }
+    .photo-viewer-stage{
+      min-height:0;position:relative;display:flex;align-items:center;justify-content:center;
+      overflow:hidden;touch-action:pan-y
+    }
+    .photo-viewer-stage img{
+      display:block;max-width:100%;max-height:100%;width:auto;height:auto;
+      object-fit:contain
+    }
+    .photo-viewer-nav{
+      position:absolute;top:50%;transform:translateY(-50%);
+      width:42px;height:52px;border:0;border-radius:13px;
+      background:rgba(10,25,19,.72);color:#fff;font-size:34px;z-index:2
+    }
+    .photo-viewer-nav.prev{left:8px}.photo-viewer-nav.next{right:8px}
+    .photo-viewer-info{
+      padding:12px 16px calc(14px + env(safe-area-inset-bottom));
+      background:linear-gradient(180deg,rgba(0,0,0,.15),rgba(0,0,0,.88))
+    }
+    .photo-viewer-info h2{margin:0 0 4px;font-size:17px}
+    .photo-viewer-info>div{color:#aebcb4;font-size:12px;margin-bottom:10px}
+    .photo-delete-btn{
+      width:100%;min-height:44px;border:1px solid rgba(255,90,90,.35);
+      border-radius:12px;background:#6f2424;color:#fff;font:inherit;font-weight:950
+    }
+
+    .photo-delete-confirm{
+      position:fixed;inset:0;z-index:1800;display:none;
+      align-items:center;justify-content:center;padding:20px;
+      background:rgba(0,0,0,.7)
+    }
+    .photo-delete-confirm.open{display:flex}
+    .photo-delete-confirm-card{
+      width:min(360px,100%);background:#10271f;border:1px solid rgba(255,255,255,.12);
+      border-radius:18px;padding:18px;box-sizing:border-box
+    }
+    .photo-delete-confirm-card h3{margin:0 0 7px}
+    .photo-delete-confirm-card p{margin:0 0 15px;color:#9eb2a6;font-size:13px}
+    .photo-delete-confirm-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .photo-delete-confirm-actions button{
+      min-height:44px;border-radius:11px;border:1px solid rgba(255,255,255,.12);
+      background:#183329;color:#fff;font:inherit;font-weight:900
+    }
+    .photo-delete-confirm-actions .danger{
+      background:#b83b3b;border-color:#b83b3b
+    }
+
 </style>
 </head>
 <body>
@@ -1437,19 +1512,7 @@
         <div class="photo-gallery-pane">
           <div id="photoGroups"></div>
         </div>
-        <aside class="photo-detail-pane" id="photoDetailPane">
-          <div class="photo-detail-counter" id="photoDetailCounter"></div>
-          <img id="photoDetailImage" alt="">
-          <div class="photo-detail-body">
-            <h2 id="photoDetailTitle"></h2>
-            <div class="photo-detail-meta" id="photoDetailMeta"></div>
-            <p id="photoDetailNote"></p>
-            <div class="photo-detail-actions">
-              <button type="button" id="photoPrevBtn">‹ 前へ</button>
-              <button type="button" id="photoNextBtn">次へ ›</button>
-            </div>
-          </div>
-        </aside>
+
       </div>
     </div>
   </section>
@@ -1482,7 +1545,36 @@
 
   
   
-  <div class="photo-audit-overlay" id="photoAuditOverlay" aria-hidden="true">
+  
+  <div class="photo-viewer-overlay" id="photoViewer" aria-hidden="true">
+    <div class="photo-viewer">
+      <button type="button" class="photo-viewer-close" id="photoViewerClose" aria-label="閉じる">×</button>
+      <div class="photo-viewer-counter" id="photoViewerCounter"></div>
+      <div class="photo-viewer-stage" id="photoViewerStage">
+        <button type="button" class="photo-viewer-nav prev" id="photoViewerPrev" aria-label="前の写真">‹</button>
+        <img id="photoViewerImage" alt="旅行写真">
+        <button type="button" class="photo-viewer-nav next" id="photoViewerNext" aria-label="次の写真">›</button>
+      </div>
+      <div class="photo-viewer-info">
+        <h2 id="photoViewerTitle"></h2>
+        <div id="photoViewerMeta"></div>
+        <button type="button" class="photo-delete-btn" id="photoDeleteBtn">写真を削除</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="photo-delete-confirm" id="photoDeleteConfirm" aria-hidden="true">
+    <div class="photo-delete-confirm-card">
+      <h3>この写真を削除しますか？</h3>
+      <p>削除すると元に戻せません。</p>
+      <div class="photo-delete-confirm-actions">
+        <button type="button" id="photoDeleteCancel">キャンセル</button>
+        <button type="button" class="danger" id="photoDeleteConfirmBtn">削除する</button>
+      </div>
+    </div>
+  </div>
+
+<div class="photo-audit-overlay" id="photoAuditOverlay" aria-hidden="true">
     <div class="photo-audit-sheet">
       <div class="photo-audit-head"><h2>写真データ点検</h2><button type="button" id="photoAuditClose">×</button></div>
       <div id="photoAuditSummary"></div>
@@ -3965,6 +4057,17 @@ document.addEventListener('click', event => {
         tx.onerror=()=>reject(tx.error);
       });
     }
+
+    async function photoDbDelete(id){
+      const db=await photoDbOpen();
+      return await new Promise((resolve,reject)=>{
+        const tx=db.transaction([PHOTO_STORE,PHOTO_META_STORE],'readwrite');
+        tx.objectStore(PHOTO_STORE).delete(id);
+        tx.objectStore(PHOTO_META_STORE).delete(id);
+        tx.oncomplete=resolve;
+        tx.onerror=()=>reject(tx.error);
+      });
+    }
     function itineraryEventOptions(){
       const rows=[];
       Object.entries(itineraryData).forEach(([day,data])=>(data.events||[]).forEach((e,index)=>rows.push({day,index,key:`${day}-${index}`,name:e.name,time:e.time})));
@@ -4095,18 +4198,6 @@ document.addEventListener('click', event => {
       });
     }
 
-    async function setPhotoDetailImage(photoId){
-      const img=document.getElementById('photoDetailImage');
-      if(!img) return;
-      img.removeAttribute('src');
-      const requestedId=photoId;
-      img.dataset.photoId=requestedId || '';
-      const url=await photoUrlById(requestedId);
-      if(url && img.dataset.photoId===requestedId){
-        img.setAttribute('src',url);
-      }
-    }
-
     let activePhotoEventFilter = '';
     let itineraryPhotoProgrammaticOpen = false;
 
@@ -4119,45 +4210,119 @@ document.addEventListener('click', event => {
         (!q||[p.title,p.eventName,p.fileName,`8/${p.day}`].join(' ').toLowerCase().includes(q))
       );
     }
-    function selectPhoto(id){
-      activePhotoId=id;
-      renderPhotoAlbum();
+    let photoRenderLimit=45;
+    const PHOTO_RENDER_STEP=45;
+    let photoLoadObserver=null;
+    let photoViewerRows=[];
+
+    function currentSortedPhotoRows(){
+      return filteredPhotos().sort((a,b)=>(a.day-b.day)||String(a.createdAt).localeCompare(String(b.createdAt)));
     }
-    function renderPhotoAlbum(){
-      const rows=filteredPhotos().sort((a,b)=>(a.day-b.day)||String(a.createdAt).localeCompare(String(b.createdAt)));
+
+    async function selectPhoto(id){
+      activePhotoId=id;
+      photoViewerRows=currentSortedPhotoRows();
+      const index=photoViewerRows.findIndex(p=>p.id===id);
+      if(index<0) return;
+
+      const viewer=document.getElementById('photoViewer');
+      viewer?.classList.add('open');
+      viewer?.setAttribute('aria-hidden','false');
+      document.body.style.overflow='hidden';
+      await renderPhotoViewer(index);
+    }
+
+    async function renderPhotoViewer(index){
+      if(!photoViewerRows.length) return;
+      index=(index+photoViewerRows.length)%photoViewerRows.length;
+      const photo=photoViewerRows[index];
+      activePhotoId=photo.id;
+
+      const img=document.getElementById('photoViewerImage');
+      if(img){
+        img.removeAttribute('src');
+        img.dataset.photoId=photo.id;
+        const url=await photoUrlById(photo.id);
+        if(url && img.dataset.photoId===photo.id) img.setAttribute('src',url);
+      }
+
+      document.getElementById('photoViewerCounter').textContent=`${index+1} / ${photoViewerRows.length}`;
+      document.getElementById('photoViewerTitle').textContent=photo.title||photo.eventName||'旅行写真';
+      document.getElementById('photoViewerMeta').textContent=`2026年8月${photo.day}日${photo.eventName?' ・ '+photo.eventName:''}`;
+
+      document.getElementById('photoViewerPrev').onclick=()=>renderPhotoViewer(index-1);
+      document.getElementById('photoViewerNext').onclick=()=>renderPhotoViewer(index+1);
+    }
+
+    function closePhotoViewer(){
+      const viewer=document.getElementById('photoViewer');
+      viewer?.classList.remove('open');
+      viewer?.setAttribute('aria-hidden','true');
+      document.body.style.overflow='';
+    }
+
+    function setupPhotoLoadObserver(totalRows){
+      photoLoadObserver?.disconnect();
+      if(photoRenderLimit>=totalRows) return;
+      const sentinel=document.getElementById('photoLoadSentinel');
+      if(!sentinel) return;
+
+      photoLoadObserver=new IntersectionObserver(entries=>{
+        if(!entries.some(e=>e.isIntersecting)) return;
+        photoLoadObserver.disconnect();
+        photoRenderLimit=Math.min(photoRenderLimit+PHOTO_RENDER_STEP,totalRows);
+        renderPhotoAlbum(true);
+      },{root:null,rootMargin:'700px 0px',threshold:0.01});
+      photoLoadObserver.observe(sentinel);
+    }
+
+    function renderPhotoAlbum(preserveLimit=false){
+      const allRows=currentSortedPhotoRows();
       const empty=document.getElementById('photoEmpty'), layout=document.getElementById('photoLayout');
       const count=document.getElementById('photoCountLabel');
       if(count) count.textContent=`写真 ${window.personalPhotos.length}枚`;
-      if(!rows.length){ if(empty) empty.hidden=false; if(layout) layout.hidden=true; return; }
-      if(empty) empty.hidden=true; if(layout) layout.hidden=false;
-      if(!rows.some(p=>p.id===activePhotoId)) activePhotoId=rows[0].id;
-      const byDay={}; rows.forEach(p=>(byDay[p.day]??=[]).push(p));
+
+      if(!preserveLimit) photoRenderLimit=PHOTO_RENDER_STEP;
+
+      if(!allRows.length){
+        if(empty) empty.hidden=false;
+        if(layout) layout.hidden=true;
+        return;
+      }
+
+      if(empty) empty.hidden=true;
+      if(layout) layout.hidden=false;
+
+      const visibleRows=allRows.slice(0,photoRenderLimit);
+      const totalByDay={};
+      allRows.forEach(p=>totalByDay[p.day]=(totalByDay[p.day]||0)+1);
+
+      const byDay={};
+      visibleRows.forEach(p=>(byDay[p.day]??=[]).push(p));
+
       const groups=document.getElementById('photoGroups');
       groups.innerHTML=Object.entries(byDay).map(([day,photos])=>`
         <section class="photo-day-group">
-          <div class="photo-day-title"><span>8月${day}日</span><span>${photos.length}枚</span></div>
+          <div class="photo-day-title"><span>8月${day}日</span><span>${totalByDay[day]}枚</span></div>
           <div class="photo-grid">${photos.map(p=>`
-            <button type="button" class="photo-thumb ${p.id===activePhotoId?'active':''}" data-photo-id="${escapeHtml(p.id)}">
+            <button type="button" class="photo-thumb" data-photo-id="${escapeHtml(p.id)}">
               <img class="photo-thumb-img" data-photo-id="${escapeHtml(p.id)}" alt="${escapeHtml(p.title||'旅行写真')}">
               <span class="photo-thumb-label">${escapeHtml(p.eventName||p.title||'写真')}</span>
             </button>`).join('')}</div>
-        </section>`).join('');
-      const active=rows.find(p=>p.id===activePhotoId)||rows[0], idx=rows.findIndex(p=>p.id===active.id);
-      document.getElementById('photoDetailCounter').textContent=`${idx+1} / ${rows.length}`;
-      setPhotoDetailImage(active.id);
-      document.getElementById('photoDetailTitle').textContent=active.title||active.eventName||'旅行写真';
-      document.getElementById('photoDetailMeta').textContent=`2026年8月${active.day}日${active.eventName?' ・ '+active.eventName:''}`;
-      document.getElementById('photoDetailNote').textContent=active.note||'';
-      bindLazyPhotoThumbs();
+        </section>`).join('') +
+        (photoRenderLimit<allRows.length
+          ? `<div class="photo-load-sentinel" id="photoLoadSentinel">写真を読み込み中… ${visibleRows.length}/${allRows.length}</div>`
+          : '');
 
-      // Keep created blob URLs alive while this page is open.
-      // Safari can otherwise show already-loaded thumbnails as broken after URL revocation.
-      groups.querySelectorAll('.photo-thumb').forEach(btn=>btn.addEventListener('click',()=>selectPhoto(btn.dataset.photoId)));
-      document.getElementById('photoPrevBtn').onclick=()=>selectPhoto(rows[(idx-1+rows.length)%rows.length].id);
-      document.getElementById('photoNextBtn').onclick=()=>selectPhoto(rows[(idx+1)%rows.length].id);
+      bindLazyPhotoThumbs();
+      groups.querySelectorAll('.photo-thumb').forEach(btn=>{
+        btn.addEventListener('click',()=>selectPhoto(btn.dataset.photoId));
+      });
+      setupPhotoLoadObserver(allRows.length);
     }
+
     async function refreshPhotoAlbum(){
-      try{ window.personalPhotos=await photoDbAll(); renderPhotoAlbum(); }catch(error){ console.warn('写真データを読み込めませんでした',error); }
+      try{ window.personalPhotos=await photoDbAll(); renderPhotoAlbum(false); }catch(error){ console.warn('写真データを読み込めませんでした',error); }
     }
     function eventRepresentativePhoto(day,eventIndex){
       const photos = Array.isArray(window.personalPhotos) ? window.personalPhotos : [];
@@ -4335,6 +4500,72 @@ document.addEventListener('click', event => {
     document.getElementById('photoAuditClose')?.addEventListener('click',closePhotoAudit);
     document.getElementById('photoAuditDone')?.addEventListener('click',closePhotoAudit);
     document.getElementById('photoAuditOverlay')?.addEventListener('click',e=>{if(e.target.id==='photoAuditOverlay')closePhotoAudit();});
+
+
+    document.getElementById('photoViewerClose')?.addEventListener('click',closePhotoViewer);
+    document.getElementById('photoViewer')?.addEventListener('click',e=>{
+      if(e.target.id==='photoViewer') closePhotoViewer();
+    });
+
+    let photoSwipeStartX=0;
+    let photoSwipeStartY=0;
+    const photoViewerStage=document.getElementById('photoViewerStage');
+    photoViewerStage?.addEventListener('touchstart',e=>{
+      const t=e.changedTouches?.[0];
+      if(!t) return;
+      photoSwipeStartX=t.clientX;
+      photoSwipeStartY=t.clientY;
+    },{passive:true});
+    photoViewerStage?.addEventListener('touchend',e=>{
+      const t=e.changedTouches?.[0];
+      if(!t) return;
+      const dx=t.clientX-photoSwipeStartX;
+      const dy=t.clientY-photoSwipeStartY;
+      if(Math.abs(dx)<55 || Math.abs(dx)<Math.abs(dy)) return;
+      const idx=photoViewerRows.findIndex(p=>p.id===activePhotoId);
+      if(idx<0) return;
+      renderPhotoViewer(dx<0 ? idx+1 : idx-1);
+    },{passive:true});
+
+    function openPhotoDeleteConfirm(){
+      const c=document.getElementById('photoDeleteConfirm');
+      c?.classList.add('open');
+      c?.setAttribute('aria-hidden','false');
+    }
+    function closePhotoDeleteConfirm(){
+      const c=document.getElementById('photoDeleteConfirm');
+      c?.classList.remove('open');
+      c?.setAttribute('aria-hidden','true');
+    }
+
+    document.getElementById('photoDeleteBtn')?.addEventListener('click',openPhotoDeleteConfirm);
+    document.getElementById('photoDeleteCancel')?.addEventListener('click',closePhotoDeleteConfirm);
+    document.getElementById('photoDeleteConfirm')?.addEventListener('click',e=>{
+      if(e.target.id==='photoDeleteConfirm') closePhotoDeleteConfirm();
+    });
+
+    document.getElementById('photoDeleteConfirmBtn')?.addEventListener('click',async()=>{
+      if(!activePhotoId) return;
+      const deletingId=activePhotoId;
+      closePhotoDeleteConfirm();
+
+      const url=photoObjectUrlCache.get(deletingId);
+      if(url){
+        try{URL.revokeObjectURL(url);}catch(_){}
+        photoObjectUrlCache.delete(deletingId);
+      }
+      photoBlobLoadPromises.delete(deletingId);
+
+      await photoDbDelete(deletingId);
+      window.personalPhotos=(window.personalPhotos||[]).filter(p=>p.id!==deletingId);
+
+      closePhotoViewer();
+      renderPhotoAlbum(false);
+
+      if(typeof renderItinerary==='function' && currentSelectedDay && itineraryData[currentSelectedDay]){
+        renderItinerary(currentSelectedDay);
+      }
+    });
 
     refreshPhotoAlbum();
 
