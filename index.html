@@ -1795,6 +1795,9 @@
       <div class="manager-toolbar" id="managerToolbar">
         <button type="button" class="manager-btn" id="managerAdd">＋ 予定を追加</button>
         <button type="button" class="manager-btn secondary" id="managerReset">変更を元に戻す</button>
+        <button type="button" class="manager-btn secondary" id="completeBackupExport">完全バックアップ</button>
+        <button type="button" class="manager-btn secondary" id="completeBackupImport">バックアップ復元</button>
+        <input id="completeBackupFile" type="file" accept=".travelbackup,.json,application/json" hidden>
       </div>
 
       <div class="manager-day-label" id="managerDayLabel"></div>
@@ -3305,6 +3308,77 @@ function renderItinerary(day) {
         });
       });
     }
+
+
+    async function exportCompleteBackup(){
+      try{
+        const db=await photoDbOpen();
+        const photos=await new Promise((resolve,reject)=>{
+          const tx=db.transaction(PHOTO_STORE,'readonly');
+          const req=tx.objectStore(PHOTO_STORE).getAll();
+          req.onsuccess=()=>resolve(req.result||[]);
+          req.onerror=()=>reject(req.error);
+        });
+        const encodedPhotos=[];
+        for(let i=0;i<photos.length;i++){
+          const p=photos[i], copy={...p};
+          delete copy.blob;
+          const bytes=new Uint8Array(await p.blob.arrayBuffer());
+          let binary='';
+          for(let j=0;j<bytes.length;j+=0x8000) binary+=String.fromCharCode(...bytes.subarray(j,j+0x8000));
+          copy.blobBase64=btoa(binary);
+          copy.blobType=p.blob.type||'image/jpeg';
+          encodedPhotos.push(copy);
+          if(i%3===2) await new Promise(r=>setTimeout(r,0));
+        }
+        const localStorageData={};
+        for(let i=0;i<localStorage.length;i++){
+          const key=localStorage.key(i);
+          localStorageData[key]=localStorage.getItem(key);
+        }
+        const payload={format:'travel-log-complete-backup',version:1,createdAt:new Date().toISOString(),localStorage:localStorageData,photos:encodedPhotos};
+        const backupBlob=new Blob([JSON.stringify(payload)],{type:'application/json'});
+        const url=URL.createObjectURL(backupBlob), a=document.createElement('a');
+        const d=new Date(),pad=n=>String(n).padStart(2,'0');
+        a.href=url;
+        a.download=`travel_log_backup_${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}.travelbackup`;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(()=>URL.revokeObjectURL(url),1000);
+        alert(`完全バックアップを作成しました。\n写真 ${photos.length}枚を含みます。`);
+      }catch(error){ console.error(error); alert('完全バックアップの作成に失敗しました。'); }
+    }
+
+    async function importCompleteBackup(file){
+      try{
+        const payload=JSON.parse(await file.text());
+        if(payload?.format!=='travel-log-complete-backup'||payload?.version!==1){ alert('travel logの完全バックアップファイルではありません。'); return; }
+        if(!confirm(`このバックアップから復元します。\n現在の編集内容と写真はバックアップ内容に置き換わります。\n\n写真 ${payload.photos?.length||0}枚\n続けますか？`)) return;
+        localStorage.clear();
+        Object.entries(payload.localStorage||{}).forEach(([k,v])=>localStorage.setItem(k,v));
+        const db=await photoDbOpen();
+        await new Promise((resolve,reject)=>{
+          const tx=db.transaction([PHOTO_STORE,PHOTO_META_STORE],'readwrite');
+          tx.objectStore(PHOTO_STORE).clear(); tx.objectStore(PHOTO_META_STORE).clear();
+          tx.oncomplete=resolve; tx.onerror=()=>reject(tx.error);
+        });
+        for(let i=0;i<(payload.photos||[]).length;i++){
+          const p={...payload.photos[i]}, b64=p.blobBase64||'', type=p.blobType||'image/jpeg';
+          delete p.blobBase64; delete p.blobType;
+          const binary=atob(b64), bytes=new Uint8Array(binary.length);
+          for(let j=0;j<binary.length;j++) bytes[j]=binary.charCodeAt(j);
+          p.blob=new Blob([bytes],{type});
+          await photoDbPut(p);
+          if(i%3===2) await new Promise(r=>setTimeout(r,0));
+        }
+        alert('復元が完了しました。ページを再読み込みします。'); location.reload();
+      }catch(error){ console.error(error); alert('バックアップの復元に失敗しました。ファイルを確認してください。'); }
+    }
+
+    document.getElementById('completeBackupExport').addEventListener('click',exportCompleteBackup);
+    document.getElementById('completeBackupImport').addEventListener('click',()=>document.getElementById('completeBackupFile').click());
+    document.getElementById('completeBackupFile').addEventListener('change',async event=>{
+      const file=event.target.files?.[0]; if(file) await importCompleteBackup(file); event.target.value='';
+    });
 
     document.getElementById('openItineraryManager').addEventListener('click', openManager);
     document.getElementById('closeItineraryManager').addEventListener('click', closeManager);
