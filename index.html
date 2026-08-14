@@ -3975,7 +3975,7 @@ document.addEventListener('click', event => {
 
 // Personal photo album. Images are stored in IndexedDB so the HTML itself does not grow with every photo.
     const PHOTO_DB_NAME = 'GavinTravelPhotos';
-    const PHOTO_DB_VERSION = 2;
+    const PHOTO_DB_VERSION = 3;
     const PHOTO_STORE = 'photos';
     const PHOTO_META_STORE = 'photoMeta';
     window.personalPhotos = window.personalPhotos || [];
@@ -3990,7 +3990,12 @@ document.addEventListener('click', event => {
         title:record.title || '',
         note:record.note || '',
         fileName:record.fileName || '',
-        createdAt:record.createdAt || ''
+        createdAt:record.createdAt || '',
+        captureTime:record.captureTime || '',
+        captureTimeSource:record.captureTimeSource || '',
+        gpsLat:Number.isFinite(record.gpsLat) ? record.gpsLat : null,
+        gpsLon:Number.isFinite(record.gpsLon) ? record.gpsLon : null,
+        exifScanned:record.exifScanned === true
       };
     }
 
@@ -4012,7 +4017,7 @@ document.addEventListener('click', event => {
           }else{
             metaStore=tx.objectStore(PHOTO_META_STORE);
           }
-          if(event.oldVersion < 2){
+          if(event.oldVersion < 3){
             const cursorReq=photoStore.openCursor();
             cursorReq.onsuccess=()=>{
               const cursor=cursorReq.result;
@@ -4053,6 +4058,29 @@ document.addEventListener('click', event => {
         const tx=db.transaction([PHOTO_STORE,PHOTO_META_STORE],'readwrite');
         tx.objectStore(PHOTO_STORE).put(record);
         tx.objectStore(PHOTO_META_STORE).put(photoMetaFromRecord(record));
+        tx.oncomplete=resolve;
+        tx.onerror=()=>reject(tx.error);
+      });
+    }
+
+    async function photoDbUpdateExif(id,exif){
+      const db=await photoDbOpen();
+      return await new Promise((resolve,reject)=>{
+        const tx=db.transaction([PHOTO_STORE,PHOTO_META_STORE],'readwrite');
+        const photos=tx.objectStore(PHOTO_STORE);
+        const meta=tx.objectStore(PHOTO_META_STORE);
+        const req=photos.get(id);
+        req.onsuccess=()=>{
+          const record=req.result;
+          if(!record) return;
+          record.captureTime=exif.captureTime || '';
+          record.captureTimeSource=exif.captureTimeSource || '';
+          record.gpsLat=Number.isFinite(exif.gpsLat) ? exif.gpsLat : null;
+          record.gpsLon=Number.isFinite(exif.gpsLon) ? exif.gpsLon : null;
+          record.exifScanned=true;
+          photos.put(record);
+          meta.put(photoMetaFromRecord(record));
+        };
         tx.oncomplete=resolve;
         tx.onerror=()=>reject(tx.error);
       });
@@ -4123,6 +4151,8 @@ document.addEventListener('click', event => {
           createdAt:new Date().toISOString(),
           blob:file
         };
+        const exif=await extractPhotoExif(record);
+        Object.assign(record,exif,{exifScanned:true});
         await photoDbPut(record);
       }
       await refreshPhotoAlbum();
@@ -4130,6 +4160,177 @@ document.addEventListener('click', event => {
         renderItinerary(currentSelectedDay);
       }
     }
+
+    function exifAscii(view,offset,count){
+      let out='';
+      for(let i=0;i<count;i++){
+        const c=view.getUint8(offset+i);
+        if(!c) break;
+        out+=String.fromCharCode(c);
+      }
+      return out.trim();
+    }
+
+    function parseExifDate(text){
+      const m=String(text||'').match(/^(\d{4}):(\d{2}):(\d{2})\s+(\d{2}):(\d{2}):(\d{2})/);
+      if(!m) return '';
+      return `${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6]}`;
+    }
+
+    function exifReadValue(view,tiffStart,entryOffset,little){
+      const type=view.getUint16(entryOffset+2,little);
+      const count=view.getUint32(entryOffset+4,little);
+      const valueField=entryOffset+8;
+      const sizes={1:1,2:1,3:2,4:4,5:8,7:1,9:4,10:8};
+      const size=(sizes[type]||1)*count;
+      const dataOffset=size<=4 ? valueField : tiffStart+view.getUint32(valueField,little);
+      return {type,count,dataOffset};
+    }
+
+    function exifRational(view,offset,little){
+      const n=view.getUint32(offset,little);
+      const d=view.getUint32(offset+4,little);
+      return d ? n/d : 0;
+    }
+
+    function exifGpsCoord(view,tiffStart,ifdOffset,little){
+      const count=view.getUint16(ifdOffset,little);
+      let latRef='',lonRef='',latVals=null,lonVals=null;
+      for(let i=0;i<count;i++){
+        const e=ifdOffset+2+i*12;
+        const tag=view.getUint16(e,little);
+        const v=exifReadValue(view,tiffStart,e,little);
+        if(tag===1) latRef=exifAscii(view,v.dataOffset,v.count);
+        if(tag===2 && v.type===5 && v.count>=3){
+          latVals=[0,1,2].map(j=>exifRational(view,v.dataOffset+j*8,little));
+        }
+        if(tag===3) lonRef=exifAscii(view,v.dataOffset,v.count);
+        if(tag===4 && v.type===5 && v.count>=3){
+          lonVals=[0,1,2].map(j=>exifRational(view,v.dataOffset+j*8,little));
+        }
+      }
+      const conv=vals=>vals ? vals[0]+vals[1]/60+vals[2]/3600 : null;
+      let lat=conv(latVals),lon=conv(lonVals);
+      if(lat!=null && /^S/i.test(latRef)) lat=-lat;
+      if(lon!=null && /^W/i.test(lonRef)) lon=-lon;
+      return {gpsLat:lat,gpsLon:lon};
+    }
+
+    function parseJpegExif(buffer){
+      const view=new DataView(buffer);
+      if(view.byteLength<4 || view.getUint16(0,false)!==0xFFD8) return {};
+      let pos=2;
+      while(pos+4<=view.byteLength){
+        if(view.getUint8(pos)!==0xFF){pos++;continue;}
+        const marker=view.getUint8(pos+1);
+        if(marker===0xDA || marker===0xD9) break;
+        if(pos+4>view.byteLength) break;
+        const len=view.getUint16(pos+2,false);
+        if(len<2 || pos+2+len>view.byteLength) break;
+        if(marker===0xE1 && len>=10 && exifAscii(view,pos+4,6)==='Exif'){
+          const tiffStart=pos+10;
+          if(tiffStart+8>view.byteLength) return {};
+          const endian=view.getUint16(tiffStart,false);
+          const little=endian===0x4949;
+          if(!little && endian!==0x4D4D) return {};
+          if(view.getUint16(tiffStart+2,little)!==42) return {};
+          const ifd0=tiffStart+view.getUint32(tiffStart+4,little);
+          if(ifd0+2>view.byteLength) return {};
+          const count=view.getUint16(ifd0,little);
+          let exifPtr=0,gpsPtr=0,dateTime='';
+          for(let i=0;i<count;i++){
+            const e=ifd0+2+i*12;
+            if(e+12>view.byteLength) break;
+            const tag=view.getUint16(e,little);
+            const v=exifReadValue(view,tiffStart,e,little);
+            if(tag===0x8769) exifPtr=tiffStart+view.getUint32(e+8,little);
+            if(tag===0x8825) gpsPtr=tiffStart+view.getUint32(e+8,little);
+            if(tag===0x0132 && v.type===2) dateTime=exifAscii(view,v.dataOffset,v.count);
+          }
+          if(exifPtr && exifPtr+2<=view.byteLength){
+            const ec=view.getUint16(exifPtr,little);
+            for(let i=0;i<ec;i++){
+              const e=exifPtr+2+i*12;
+              if(e+12>view.byteLength) break;
+              const tag=view.getUint16(e,little);
+              const v=exifReadValue(view,tiffStart,e,little);
+              if((tag===0x9003 || tag===0x9004) && v.type===2){
+                const x=exifAscii(view,v.dataOffset,v.count);
+                if(x){dateTime=x; if(tag===0x9003) break;}
+              }
+            }
+          }
+          const result={};
+          const captureTime=parseExifDate(dateTime);
+          if(captureTime){
+            result.captureTime=captureTime;
+            result.captureTimeSource='EXIF';
+          }
+          if(gpsPtr && gpsPtr+2<=view.byteLength){
+            Object.assign(result,exifGpsCoord(view,tiffStart,gpsPtr,little));
+          }
+          return result;
+        }
+        pos+=2+len;
+      }
+      return {};
+    }
+
+    async function extractPhotoExif(record){
+      const blob=record?.blob;
+      if(!blob) return {captureTime:'',captureTimeSource:'',gpsLat:null,gpsLon:null};
+      let parsed={};
+      try{
+        // EXIF is normally near the start of JPEG files. Keep memory usage low.
+        const header=await blob.slice(0,1024*1024).arrayBuffer();
+        parsed=parseJpegExif(header);
+      }catch(_){}
+
+      // File.lastModified is only a fallback; it is not treated as EXIF capture time.
+      if(!parsed.captureTime && Number.isFinite(blob.lastModified) && blob.lastModified>0){
+        const d=new Date(blob.lastModified);
+        if(!Number.isNaN(d.getTime())){
+          const pad=n=>String(n).padStart(2,'0');
+          parsed.captureTime=
+            `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+          parsed.captureTimeSource='FILE';
+        }
+      }
+      return {
+        captureTime:parsed.captureTime || '',
+        captureTimeSource:parsed.captureTimeSource || '',
+        gpsLat:Number.isFinite(parsed.gpsLat)?parsed.gpsLat:null,
+        gpsLon:Number.isFinite(parsed.gpsLon)?parsed.gpsLon:null
+      };
+    }
+
+    let exifScanRunning=false;
+    async function scanMissingPhotoExif(){
+      if(exifScanRunning) return;
+      const pending=(window.personalPhotos||[]).filter(p=>p.exifScanned!==true);
+      if(!pending.length) return;
+      exifScanRunning=true;
+      try{
+        for(let i=0;i<pending.length;i++){
+          const meta=pending[i];
+          try{
+            const record=await photoDbGet(meta.id);
+            if(!record) continue;
+            const exif=await extractPhotoExif(record);
+            await photoDbUpdateExif(meta.id,exif);
+            Object.assign(meta,exif,{exifScanned:true});
+          }catch(error){
+            console.warn('写真EXIF解析失敗',meta.id,error);
+          }
+          // Yield to Safari so the UI remains responsive.
+          if(i%4===3) await new Promise(resolve=>setTimeout(resolve,0));
+        }
+        renderPhotoAlbum(false);
+      }finally{
+        exifScanRunning=false;
+      }
+    }
+
     const photoObjectUrlCache = new Map();
     const photoBlobLoadPromises = new Map();
 
@@ -4215,8 +4416,19 @@ document.addEventListener('click', event => {
     let photoLoadObserver=null;
     let photoViewerRows=[];
 
+    function photoSortTimestamp(photo){
+      const capture=Date.parse(photo.captureTime || '');
+      if(Number.isFinite(capture)) return capture;
+      const created=Date.parse(photo.createdAt || '');
+      return Number.isFinite(created) ? created : Number.MAX_SAFE_INTEGER;
+    }
+
     function currentSortedPhotoRows(){
-      return filteredPhotos().sort((a,b)=>(a.day-b.day)||String(a.createdAt).localeCompare(String(b.createdAt)));
+      return filteredPhotos().sort((a,b)=>
+        (Number(a.day)-Number(b.day)) ||
+        (photoSortTimestamp(a)-photoSortTimestamp(b)) ||
+        String(a.createdAt||'').localeCompare(String(b.createdAt||''))
+      );
     }
 
     async function selectPhoto(id){
@@ -4248,7 +4460,14 @@ document.addEventListener('click', event => {
 
       document.getElementById('photoViewerCounter').textContent=`${index+1} / ${photoViewerRows.length}`;
       document.getElementById('photoViewerTitle').textContent=photo.title||photo.eventName||'旅行写真';
-      document.getElementById('photoViewerMeta').textContent=`2026年8月${photo.day}日${photo.eventName?' ・ '+photo.eventName:''}`;
+      const captureLabel=photo.captureTime
+        ? ` ・ 撮影 ${String(photo.captureTime).slice(11,16)}${photo.captureTimeSource==='EXIF'?'':'（参考）'}`
+        : '';
+      const gpsLabel=(Number.isFinite(photo.gpsLat) && Number.isFinite(photo.gpsLon))
+        ? ` ・ GPS ${photo.gpsLat.toFixed(5)}, ${photo.gpsLon.toFixed(5)}`
+        : '';
+      document.getElementById('photoViewerMeta').textContent=
+        `2026年8月${photo.day}日${photo.eventName?' ・ '+photo.eventName:''}${captureLabel}${gpsLabel}`;
 
       document.getElementById('photoViewerPrev').onclick=()=>renderPhotoViewer(index-1);
       document.getElementById('photoViewerNext').onclick=()=>renderPhotoViewer(index+1);
@@ -4322,7 +4541,13 @@ document.addEventListener('click', event => {
     }
 
     async function refreshPhotoAlbum(){
-      try{ window.personalPhotos=await photoDbAll(); renderPhotoAlbum(false); }catch(error){ console.warn('写真データを読み込めませんでした',error); }
+      try{
+        window.personalPhotos=await photoDbAll();
+        renderPhotoAlbum(false);
+        setTimeout(()=>scanMissingPhotoExif(),60);
+      }catch(error){
+        console.warn('写真データを読み込めませんでした',error);
+      }
     }
     function eventRepresentativePhoto(day,eventIndex){
       const photos = Array.isArray(window.personalPhotos) ? window.personalPhotos : [];
