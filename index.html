@@ -1625,7 +1625,7 @@
             <h2 id="myPageTitle">マイページ</h2>
             <p>travel log</p>
             <div class="mypage-update-info">
-              <div>アプリ更新：<span id="appUpdatedAt">2026/08/14 15:31</span></div>
+              <div>アプリ更新：<span id="appUpdatedAt">2026/08/14 15:52</span></div>
               <div>データ最終更新：<span id="dataUpdatedAt">—</span></div>
             </div>
           </div>
@@ -1807,8 +1807,10 @@
         <button type="button" class="manager-btn" id="managerAdd">＋ 予定を追加</button>
         <button type="button" class="manager-btn secondary" id="managerReset">変更を元に戻す</button>
         <button type="button" class="manager-btn secondary" id="completeBackupExport">完全バックアップ</button>
+        <button type="button" class="manager-btn secondary" id="completeBackupVerify">バックアップを検証</button>
         <button type="button" class="manager-btn secondary" id="completeBackupImport">バックアップ復元</button>
-        <input id="completeBackupFile" type="file" accept=".travelbackup,.json,application/json" hidden>
+        <input id="completeBackupVerifyFile" type="file" accept=".travelbackup,application/octet-stream" hidden>
+        <input id="completeBackupFile" type="file" accept=".travelbackup,application/octet-stream" hidden>
       </div>
       <div id="backupProgressBox" style="display:none;margin:0 16px 12px;padding:12px 14px;border-radius:12px;background:#193429;border:1px solid rgba(255,255,255,.1);font-size:13px;font-weight:800;line-height:1.5">
         <div id="backupProgressText">バックアップ準備中…</div>
@@ -3423,6 +3425,81 @@ function renderItinerary(day) {
       }finally{ btn.disabled=false; }
     }
 
+
+    async function verifyCompleteBackup(file){
+      const box=document.getElementById('backupProgressBox');
+      const text=document.getElementById('backupProgressText');
+      const bar=document.getElementById('backupProgressBar');
+      const btn=document.getElementById('completeBackupVerify');
+      btn.disabled=true;
+      box.style.display='block';
+      try{
+        text.textContent='バックアップを確認しています…';
+        bar.max=1; bar.value=0;
+
+        if(file.size<16) throw new Error('ファイルが小さすぎます');
+        const head=new Uint8Array(await file.slice(0,16).arrayBuffer());
+        const magic=new TextDecoder().decode(head.slice(0,8));
+        if(magic!==TL_BACKUP_MAGIC) throw new Error('travel logのバックアップ形式ではありません');
+
+        const manifestLength=readU64le(new DataView(head.buffer),8);
+        if(!Number.isSafeInteger(manifestLength)||manifestLength<=0||manifestLength>50*1024*1024)
+          throw new Error('管理データが壊れています');
+
+        const binaryStart=16+manifestLength;
+        if(binaryStart>file.size) throw new Error('管理データの長さが不正です');
+
+        const manifest=JSON.parse(await file.slice(16,binaryStart).text());
+        if(manifest?.format!=='travel-log-binary-backup'||manifest?.version!==1)
+          throw new Error('対応していないバックアップ形式です');
+
+        const photos=manifest.photos||[];
+        bar.max=Math.max(1,photos.length);
+        let totalBytes=0;
+        for(let i=0;i<photos.length;i++){
+          const p=photos[i];
+          text.textContent=`写真データを検証中 ${i+1} / ${photos.length}`;
+          const off=Number(p.binaryOffset), len=Number(p.binaryLength);
+          if(!Number.isSafeInteger(off)||!Number.isSafeInteger(len)||off<0||len<0)
+            throw new Error(`写真 ${i+1} の位置情報が不正です`);
+          const start=binaryStart+off, end=start+len;
+          if(end>file.size) throw new Error(`写真 ${i+1} のデータが途中で切れています`);
+          // Actually read first and last byte of every image range to ensure the slice is accessible.
+          if(len>0){
+            await file.slice(start,start+1).arrayBuffer();
+            await file.slice(end-1,end).arrayBuffer();
+          }
+          totalBytes+=len;
+          bar.value=i+1;
+          if(i%10===9) await new Promise(r=>setTimeout(r,0));
+        }
+
+        const expectedEnd=binaryStart+totalBytes;
+        if(expectedEnd!==file.size)
+          throw new Error(`ファイルサイズが一致しません（差 ${file.size-expectedEnd} bytes）`);
+
+        const hasItinerary=Object.keys(manifest.localStorage||{}).length>0;
+        if(!hasItinerary) throw new Error('旅程・設定データがありません');
+
+        const mb=(file.size/1000/1000).toFixed(1);
+        text.textContent=`検証OK：写真 ${photos.length}枚・${mb} MB`;
+        alert(
+          `バックアップ：正常\n`+
+          `写真：${photos.length}枚\n`+
+          `容量：${mb} MB\n`+
+          `旅程・設定データ：正常\n`+
+          `写真データ：全件読み取り可能\n`+
+          `復元可能`
+        );
+      }catch(error){
+        console.error('backup verify failed',error);
+        text.textContent=`検証失敗：${error?.message||String(error)}`;
+        alert(`バックアップの検証に失敗しました。\n${error?.message||String(error)}`);
+      }finally{
+        btn.disabled=false;
+      }
+    }
+
     async function importCompleteBackup(file){
       try{
         // Read only the 16-byte header first.
@@ -3482,6 +3559,12 @@ function renderItinerary(day) {
     }
 
     document.getElementById('completeBackupExport').addEventListener('click',exportCompleteBackup);
+    document.getElementById('completeBackupVerify').addEventListener('click',()=>document.getElementById('completeBackupVerifyFile').click());
+    document.getElementById('completeBackupVerifyFile').addEventListener('change',async event=>{
+      const file=event.target.files?.[0];
+      if(file) await verifyCompleteBackup(file);
+      event.target.value='';
+    });
     document.getElementById('completeBackupImport').addEventListener('click',()=>document.getElementById('completeBackupFile').click());
     document.getElementById('completeBackupFile').addEventListener('change',async event=>{
       const file=event.target.files?.[0]; if(file) await importCompleteBackup(file); event.target.value='';
