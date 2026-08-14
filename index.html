@@ -1510,12 +1510,9 @@
           <p id="photoCountLabel">写真 0枚</p>
         </div>
         <div class="photo-head-actions">
-          <button type="button" class="photo-audit-btn" id="photoAuditBtn">写真データ点検</button>
-          <button type="button" class="photo-audit-btn" id="photoOptimizeBtn">写真を軽量化</button>
           <button type="button" class="photo-add-btn" id="photoAddBtn">＋ 写真を追加</button>
         </div>
         <input type="file" id="photoAddInput" accept="image/*" multiple hidden>
-        <div id="photoOptimizeProgress" style="display:none;margin-top:10px;font-size:12px;font-weight:800;color:#d6b55b"></div>
       </div>
 
       <div class="photo-toolbar">
@@ -1628,7 +1625,7 @@
             <h2 id="myPageTitle">マイページ</h2>
             <p>travel log</p>
             <div class="mypage-update-info">
-              <div>アプリ更新：<span id="appUpdatedAt">2026/08/14 14:41</span></div>
+              <div>アプリ更新：<span id="appUpdatedAt">2026/08/14 15:08</span></div>
               <div>データ最終更新：<span id="dataUpdatedAt">—</span></div>
             </div>
           </div>
@@ -4977,51 +4974,6 @@ document.addEventListener('click', event => {
     function openPhotoAudit(){buildPhotoAudit();const o=document.getElementById('photoAuditOverlay');o?.classList.add('open');o?.setAttribute('aria-hidden','false');}
     function closePhotoAudit(){const o=document.getElementById('photoAuditOverlay');o?.classList.remove('open');o?.setAttribute('aria-hidden','true');}
 
-    async function optimizeExistingPhotos(){
-      const btn=document.getElementById('photoOptimizeBtn');
-      const progress=document.getElementById('photoOptimizeProgress');
-      if(!confirm('保存済みの写真をPCでもきれいに見られるサイズへ軽量化します。\n旅程との紐付け・撮影時刻・GPSはそのまま残します。\n実行しますか？')) return;
-      btn.disabled=true;
-      progress.style.display='block';
-      try{
-        const db=await photoDbOpen();
-        const ids=await new Promise((resolve,reject)=>{
-          const tx=db.transaction(PHOTO_STORE,'readonly');
-          const req=tx.objectStore(PHOTO_STORE).getAllKeys();
-          req.onsuccess=()=>resolve(req.result||[]);
-          req.onerror=()=>reject(req.error);
-        });
-        let before=0,after=0,done=0;
-        for(let i=0;i<ids.length;i++){
-          progress.textContent=`写真を軽量化中 ${i+1} / ${ids.length}`;
-          const record=await photoDbGet(ids[i]);
-          if(!record?.blob) continue;
-          before+=record.blob.size||0;
-          // Existing metadata fields remain on record unchanged.
-          try{ record.blob=await optimizePhotoBlob(record.blob); }catch(error){ console.warn('軽量化スキップ',record.id,error); }
-          after+=record.blob.size||0;
-          await photoDbPut(record);
-          done++;
-          await new Promise(r=>setTimeout(r,0));
-        }
-        window.personalPhotos=await photoDbAll();
-        renderPhotoAlbum(false);
-        markDataUpdated();
-        const mb=n=>(n/1024/1024).toFixed(1);
-        progress.textContent=`完了：${done}枚　${mb(before)} MB → ${mb(after)} MB`;
-        alert(`写真の軽量化が完了しました。\n${done}枚\n${mb(before)} MB → ${mb(after)} MB`);
-      }catch(error){
-        console.error(error);
-        progress.textContent=`軽量化失敗：${error?.message||String(error)}`;
-        alert(`写真の軽量化に失敗しました。\n${error?.message||String(error)}`);
-      }finally{
-        btn.disabled=false;
-      }
-    }
-
-    document.getElementById('photoOptimizeBtn')?.addEventListener('click',optimizeExistingPhotos);
-
-    document.getElementById('photoAuditBtn')?.addEventListener('click',openPhotoAudit);
     document.getElementById('photoAuditClose')?.addEventListener('click',closePhotoAudit);
     document.getElementById('photoAuditDone')?.addEventListener('click',closePhotoAudit);
     document.getElementById('photoAuditOverlay')?.addEventListener('click',e=>{if(e.target.id==='photoAuditOverlay')closePhotoAudit();});
