@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="theme-color" content="#07120f" />
-  <title>Gavin Travel</title>
+  <title>travel log</title>
   <meta name="gavin-travel-version" content="27-full-update">
   <style>
     :root{
@@ -1290,7 +1290,7 @@
 <body>
   <main class="app">
     <header class="topbar">
-      <div><div class="brand">GAVIN TRAVEL</div><div class="online-state" id="onlineState"><span class="online-dot"></span><span id="onlineText">オンライン</span></div></div>
+      <div><div class="brand">travel log</div><div class="online-state" id="onlineState"><span class="online-dot"></span><span id="onlineText">オンライン</span></div></div>
       <button type="button" class="avatar avatar-button" id="openMyPage" aria-label="マイページを開く">G</button>
     </header>
 
@@ -1441,7 +1441,7 @@
     </section>
     <section class="screen" id="concierge">
       <p class="eyebrow">台湾2026</p>
-      <h1 class="page-title">コンシェルジュ</h1>
+      <h1 class="page-title">旅の案内人</h1>
       <p class="sub" id="conciergeDayLabel">選択中の日程を参照して回答します。</p>
 
       <div class="chat-shell">
@@ -1601,7 +1601,7 @@
           <div class="mypage-avatar">G</div>
           <div>
             <h2 id="myPageTitle">マイページ</h2>
-            <p>Gavin Travel</p>
+            <p>travel log</p>
           </div>
         </div>
         <button type="button" class="close-btn" id="closeMyPage" aria-label="閉じる">×</button>
@@ -3416,7 +3416,7 @@ function renderItinerary(day) {
       const text = selectedDayText();
       try{
         if(navigator.share){
-          await navigator.share({title:'Gavin Travel 台湾2026',text});
+          await navigator.share({title:'travel log 台湾2026',text});
         }else{
           await navigator.clipboard.writeText(text);
           alert('予定をコピーしました');
@@ -3612,7 +3612,7 @@ function renderItinerary(day) {
     const dataToolStatus = document.getElementById('dataToolStatus');
     document.getElementById('exportDataBtn')?.addEventListener('click', () => {
       const payload = {
-        app:'Gavin Travel',
+        app:'travel log',
         version:'2.0.7',
         exportedAt:new Date().toISOString(),
         selectedDay:currentSelectedDay,
