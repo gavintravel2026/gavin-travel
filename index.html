@@ -1193,6 +1193,23 @@
       padding-right:4px !important;
     }
 
+
+    .photo-head-actions{display:flex;gap:8px;align-items:center}
+    .photo-audit-btn{min-height:42px;padding:9px 11px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:#183329;color:inherit;font:inherit;font-weight:900}
+    .photo-audit-overlay{position:fixed;inset:0;z-index:1500;display:none;align-items:flex-end;justify-content:center;background:rgba(0,0,0,.66)}
+    .photo-audit-overlay.open{display:flex}
+    .photo-audit-sheet{width:min(680px,100%);max-height:82vh;overflow:auto;background:#10271f;border-radius:22px 22px 0 0;padding:16px 14px calc(18px + env(safe-area-inset-bottom));box-sizing:border-box}
+    .photo-audit-head{display:flex;justify-content:space-between;align-items:center}
+    .photo-audit-head h2{margin:0;font-size:20px}.photo-audit-head button{border:0;background:transparent;color:inherit;font-size:27px}
+    .photo-audit-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:12px 0}
+    .photo-audit-stat{padding:10px 5px;border-radius:12px;background:#183329;text-align:center}
+    .photo-audit-stat strong{display:block;font-size:20px}.photo-audit-stat span{display:block;font-size:11px;color:#9eb2a6;margin-top:2px}
+    .photo-audit-ok,.photo-audit-warning{padding:10px 11px;border-radius:12px;margin:8px 0;font-size:13px}
+    .photo-audit-ok{background:rgba(90,160,110,.16)}.photo-audit-warning{background:rgba(214,181,91,.16)}
+    .photo-audit-row{display:flex;justify-content:space-between;gap:10px;padding:9px 3px;border-bottom:1px solid rgba(255,255,255,.08);font-size:13px}
+    .photo-audit-row strong{white-space:nowrap}
+    .photo-audit-done{width:100%;min-height:44px;margin-top:14px;border:0;border-radius:12px;background:#d6b55b;color:#102018;font:inherit;font-weight:950}
+
 </style>
 </head>
 <body>
@@ -1394,7 +1411,10 @@
           <h1>旅の写真</h1>
           <p id="photoCountLabel">写真 0枚</p>
         </div>
-        <button type="button" class="photo-add-btn" id="photoAddBtn">＋ 写真を追加</button>
+        <div class="photo-head-actions">
+          <button type="button" class="photo-audit-btn" id="photoAuditBtn">写真データ点検</button>
+          <button type="button" class="photo-add-btn" id="photoAddBtn">＋ 写真を追加</button>
+        </div>
         <input type="file" id="photoAddInput" accept="image/*" multiple hidden>
       </div>
 
@@ -1461,7 +1481,16 @@
 
 
   
-  <div class="itinerary-photo-menu" id="itineraryPhotoMenu" aria-hidden="true">
+  
+  <div class="photo-audit-overlay" id="photoAuditOverlay" aria-hidden="true">
+    <div class="photo-audit-sheet">
+      <div class="photo-audit-head"><h2>写真データ点検</h2><button type="button" id="photoAuditClose">×</button></div>
+      <div id="photoAuditSummary"></div>
+      <div id="photoAuditList"></div>
+      <button type="button" class="photo-audit-done" id="photoAuditDone">閉じる</button>
+    </div>
+  </div>
+<div class="itinerary-photo-menu" id="itineraryPhotoMenu" aria-hidden="true">
     <div class="itinerary-photo-menu-sheet">
       <div class="itinerary-photo-menu-card">
         <div class="itinerary-photo-menu-title" id="itineraryPhotoMenuTitle"></div>
@@ -3942,7 +3971,54 @@ document.addEventListener('click', event => {
         renderItinerary(currentSelectedDay);
       }
     }
-    function photoUrl(photo){ return URL.createObjectURL(photo.blob); }
+    const photoObjectUrlCache = new Map();
+
+    function photoUrl(photo){
+      if(!photo?.id || !photo?.blob) return '';
+      if(photoObjectUrlCache.has(photo.id)) return photoObjectUrlCache.get(photo.id);
+      const url=URL.createObjectURL(photo.blob);
+      photoObjectUrlCache.set(photo.id,url);
+      return url;
+    }
+
+    function releaseUnusedPhotoUrls(keepIds=new Set()){
+      for(const [id,url] of photoObjectUrlCache.entries()){
+        if(!keepIds.has(id)){
+          try{ URL.revokeObjectURL(url); }catch(_){}
+          photoObjectUrlCache.delete(id);
+        }
+      }
+    }
+
+    let photoLazyObserver=null;
+    function ensurePhotoLazyObserver(){
+      if(photoLazyObserver || !('IntersectionObserver' in window)) return;
+      photoLazyObserver=new IntersectionObserver(entries=>{
+        entries.forEach(entry=>{
+          if(!entry.isIntersecting) return;
+          const img=entry.target;
+          const id=img.dataset.photoId;
+          const photo=(window.personalPhotos||[]).find(p=>p.id===id);
+          if(photo && !img.src){
+            img.src=photoUrl(photo);
+          }
+          photoLazyObserver.unobserve(img);
+        });
+      },{root:null,rootMargin:'240px 0px',threshold:0.01});
+    }
+
+    function bindLazyPhotoThumbs(){
+      ensurePhotoLazyObserver();
+      document.querySelectorAll('img.photo-thumb-img[data-photo-id]').forEach(img=>{
+        if(photoLazyObserver){
+          photoLazyObserver.observe(img);
+        }else{
+          const id=img.dataset.photoId;
+          const photo=(window.personalPhotos||[]).find(p=>p.id===id);
+          if(photo) img.src=photoUrl(photo);
+        }
+      });
+    }
     let activePhotoEventFilter = '';
     let itineraryPhotoProgrammaticOpen = false;
 
@@ -3974,7 +4050,7 @@ document.addEventListener('click', event => {
           <div class="photo-day-title"><span>8月${day}日</span><span>${photos.length}枚</span></div>
           <div class="photo-grid">${photos.map(p=>`
             <button type="button" class="photo-thumb ${p.id===activePhotoId?'active':''}" data-photo-id="${escapeHtml(p.id)}">
-              <img src="${photoUrl(p)}" alt="${escapeHtml(p.title||'旅行写真')}">
+              <img class="photo-thumb-img" data-photo-id="${escapeHtml(p.id)}" alt="${escapeHtml(p.title||'旅行写真')}">
               <span class="photo-thumb-label">${escapeHtml(p.eventName||p.title||'写真')}</span>
             </button>`).join('')}</div>
         </section>`).join('');
@@ -3984,6 +4060,12 @@ document.addEventListener('click', event => {
       document.getElementById('photoDetailTitle').textContent=active.title||active.eventName||'旅行写真';
       document.getElementById('photoDetailMeta').textContent=`2026年8月${active.day}日${active.eventName?' ・ '+active.eventName:''}`;
       document.getElementById('photoDetailNote').textContent=active.note||'';
+      bindLazyPhotoThumbs();
+
+      const keepIds=new Set([active.id]);
+      rows.slice(Math.max(0,idx-12),Math.min(rows.length,idx+13)).forEach(p=>keepIds.add(p.id));
+      releaseUnusedPhotoUrls(keepIds);
+
       groups.querySelectorAll('.photo-thumb').forEach(btn=>btn.addEventListener('click',()=>selectPhoto(btn.dataset.photoId)));
       document.getElementById('photoPrevBtn').onclick=()=>selectPhoto(rows[(idx-1+rows.length)%rows.length].id);
       document.getElementById('photoNextBtn').onclick=()=>selectPhoto(rows[(idx+1)%rows.length].id);
@@ -4125,9 +4207,59 @@ document.addEventListener('click', event => {
       requestAnimationFrame(()=>renderPhotoAlbum());
     });
 
+
+    function buildPhotoAudit(){
+      const photos=Array.isArray(window.personalPhotos) ? window.personalPhotos : [];
+      const validEvents=new Map();
+      Object.entries(itineraryData).forEach(([day,data])=>{
+        (data?.events || []).forEach((event,index)=>{
+          validEvents.set(`${day}-${index}`,{label:`8/${day} ${event.time || ''} ${itineraryCardTitle(event)}`.trim()});
+        });
+      });
+      const linked=[],unlinked=[],broken=[],groups=new Map();
+      photos.forEach(photo=>{
+        if(!photo.eventKey){unlinked.push(photo);return;}
+        const ev=validEvents.get(photo.eventKey);
+        if(!ev){broken.push(photo);return;}
+        linked.push(photo);
+        const g=groups.get(photo.eventKey)||{label:ev.label,count:0};
+        g.count++; groups.set(photo.eventKey,g);
+      });
+      const summary=document.getElementById('photoAuditSummary');
+      const list=document.getElementById('photoAuditList');
+      if(!summary||!list)return;
+      summary.innerHTML=`<div class="photo-audit-summary">
+        <div class="photo-audit-stat"><strong>${photos.length}</strong><span>総写真数</span></div>
+        <div class="photo-audit-stat"><strong>${linked.length}</strong><span>正常に紐づき</span></div>
+        <div class="photo-audit-stat"><strong>${unlinked.length+broken.length}</strong><span>要確認</span></div>
+      </div>${(!unlinked.length&&!broken.length)
+        ?'<div class="photo-audit-ok">✓ すべての写真が現在の旅程に紐づいています。</div>'
+        :`<div class="photo-audit-warning">要確認：紐づきなし ${unlinked.length}枚／存在しない旅程への紐づき ${broken.length}枚</div>`}`;
+      const rows=[...groups.values()].sort((a,b)=>a.label.localeCompare(b.label,'ja'))
+        .map(g=>`<div class="photo-audit-row"><span>${escapeHtml(g.label)}</span><strong>${g.count}枚</strong></div>`).join('');
+      const bad=[
+        ...unlinked.map(p=>`<div class="photo-audit-row"><span>⚠ 紐づきなし：${escapeHtml(p.fileName||p.title||'写真')}</span><strong>1枚</strong></div>`),
+        ...broken.map(p=>`<div class="photo-audit-row"><span>⚠ 旅程が見つからない：${escapeHtml(p.fileName||p.title||'写真')}</span><strong>1枚</strong></div>`)
+      ].join('');
+      list.innerHTML=(rows||'<div class="photo-audit-row"><span>写真はまだありません</span><strong>0枚</strong></div>')+bad;
+    }
+    function openPhotoAudit(){buildPhotoAudit();const o=document.getElementById('photoAuditOverlay');o?.classList.add('open');o?.setAttribute('aria-hidden','false');}
+    function closePhotoAudit(){const o=document.getElementById('photoAuditOverlay');o?.classList.remove('open');o?.setAttribute('aria-hidden','true');}
+    document.getElementById('photoAuditBtn')?.addEventListener('click',openPhotoAudit);
+    document.getElementById('photoAuditClose')?.addEventListener('click',closePhotoAudit);
+    document.getElementById('photoAuditDone')?.addEventListener('click',closePhotoAudit);
+    document.getElementById('photoAuditOverlay')?.addEventListener('click',e=>{if(e.target.id==='photoAuditOverlay')closePhotoAudit();});
+
     refreshPhotoAlbum();
 
 
+
+    window.addEventListener('pagehide',()=>{
+      for(const url of photoObjectUrlCache.values()){
+        try{URL.revokeObjectURL(url);}catch(_){}
+      }
+      photoObjectUrlCache.clear();
+    });
 </script>
 <div id="gourmetMasterAdditions" style="display:none">
         <article class="food-card" data-region="台北" data-search="T127 忠青商行 信義店 信義・台湾料理 忠青炸鶏ルーロウハンのセット">
