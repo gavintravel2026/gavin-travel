@@ -3999,23 +3999,38 @@ document.addEventListener('click', event => {
           const img=entry.target;
           const id=img.dataset.photoId;
           const photo=(window.personalPhotos||[]).find(p=>p.id===id);
-          if(photo && !img.src){
-            img.src=photoUrl(photo);
+          if(photo && !img.getAttribute('src')){
+            img.setAttribute('src',photoUrl(photo));
           }
           photoLazyObserver.unobserve(img);
         });
-      },{root:null,rootMargin:'240px 0px',threshold:0.01});
+      },{root:null,rootMargin:'700px 0px',threshold:0.01});
     }
 
     function bindLazyPhotoThumbs(){
       ensurePhotoLazyObserver();
       document.querySelectorAll('img.photo-thumb-img[data-photo-id]').forEach(img=>{
+        img.addEventListener('error',()=>{
+          if(img.dataset.retryDone==='1') return;
+          const id=img.dataset.photoId;
+          const photo=(window.personalPhotos||[]).find(p=>p.id===id);
+          if(!photo) return;
+          img.dataset.retryDone='1';
+          const oldUrl=photoObjectUrlCache.get(id);
+          if(oldUrl){
+            try{URL.revokeObjectURL(oldUrl);}catch(_){}
+            photoObjectUrlCache.delete(id);
+          }
+          img.removeAttribute('src');
+          requestAnimationFrame(()=>img.setAttribute('src',photoUrl(photo)));
+        },{once:false});
+
         if(photoLazyObserver){
           photoLazyObserver.observe(img);
         }else{
           const id=img.dataset.photoId;
           const photo=(window.personalPhotos||[]).find(p=>p.id===id);
-          if(photo) img.src=photoUrl(photo);
+          if(photo && !img.getAttribute('src')) img.setAttribute('src',photoUrl(photo));
         }
       });
     }
@@ -4062,10 +4077,8 @@ document.addEventListener('click', event => {
       document.getElementById('photoDetailNote').textContent=active.note||'';
       bindLazyPhotoThumbs();
 
-      const keepIds=new Set([active.id]);
-      rows.slice(Math.max(0,idx-12),Math.min(rows.length,idx+13)).forEach(p=>keepIds.add(p.id));
-      releaseUnusedPhotoUrls(keepIds);
-
+      // Keep created blob URLs alive while this page is open.
+      // Safari can otherwise show already-loaded thumbnails as broken after URL revocation.
       groups.querySelectorAll('.photo-thumb').forEach(btn=>btn.addEventListener('click',()=>selectPhoto(btn.dataset.photoId)));
       document.getElementById('photoPrevBtn').onclick=()=>selectPhoto(rows[(idx-1+rows.length)%rows.length].id);
       document.getElementById('photoNextBtn').onclick=()=>selectPhoto(rows[(idx+1)%rows.length].id);
