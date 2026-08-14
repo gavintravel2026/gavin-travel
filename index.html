@@ -1799,6 +1799,10 @@
         <button type="button" class="manager-btn secondary" id="completeBackupImport">バックアップ復元</button>
         <input id="completeBackupFile" type="file" accept=".travelbackup,.json,application/json" hidden>
       </div>
+      <div id="backupProgressBox" style="display:none;margin:0 16px 12px;padding:12px 14px;border-radius:12px;background:#193429;border:1px solid rgba(255,255,255,.1);font-size:13px;font-weight:800;line-height:1.5">
+        <div id="backupProgressText">バックアップ準備中…</div>
+        <progress id="backupProgressBar" value="0" max="1" style="width:100%;margin-top:8px"></progress>
+      </div>
 
       <div class="manager-day-label" id="managerDayLabel"></div>
       <div class="manager-list" id="managerList"></div>
@@ -3311,47 +3315,107 @@ function renderItinerary(day) {
 
 
     async function exportCompleteBackup(){
+      const box=document.getElementById('backupProgressBox');
+      const text=document.getElementById('backupProgressText');
+      const bar=document.getElementById('backupProgressBar');
+      const btn=document.getElementById('completeBackupExport');
+      const setProgress=(message,value,max)=>{
+        box.style.display='block';
+        text.textContent=message;
+        bar.max=Math.max(1,max||1);
+        bar.value=Math.max(0,value||0);
+      };
+      btn.disabled=true;
       try{
+        setProgress('写真データを確認しています…',0,1);
         const db=await photoDbOpen();
-        const photos=await new Promise((resolve,reject)=>{
+
+        // Read keys first. Do not load all photo Blobs into memory at once.
+        const ids=await new Promise((resolve,reject)=>{
           const tx=db.transaction(PHOTO_STORE,'readonly');
-          const req=tx.objectStore(PHOTO_STORE).getAll();
+          const req=tx.objectStore(PHOTO_STORE).getAllKeys();
           req.onsuccess=()=>resolve(req.result||[]);
           req.onerror=()=>reject(req.error);
         });
+
         const encodedPhotos=[];
-        for(let i=0;i<photos.length;i++){
-          const p=photos[i], copy={...p};
+        let rawBytes=0;
+        for(let i=0;i<ids.length;i++){
+          setProgress(`バックアップ準備中 ${i+1} / ${ids.length}`,i,ids.length);
+          const p=await photoDbGet(ids[i]);
+          if(!p) continue;
+          const copy={...p};
           delete copy.blob;
-          const bytes=new Uint8Array(await p.blob.arrayBuffer());
-          let binary='';
-          for(let j=0;j<bytes.length;j+=0x8000) binary+=String.fromCharCode(...bytes.subarray(j,j+0x8000));
-          copy.blobBase64=btoa(binary);
-          copy.blobType=p.blob.type||'image/jpeg';
+
+          if(p.blob instanceof Blob){
+            rawBytes+=p.blob.size||0;
+            // One photo at a time. ArrayBuffer and binary string are released each iteration.
+            const buffer=await p.blob.arrayBuffer();
+            const bytes=new Uint8Array(buffer);
+            const chunks=[];
+            for(let j=0;j<bytes.length;j+=0x4000){
+              chunks.push(String.fromCharCode(...bytes.subarray(j,j+0x4000)));
+            }
+            copy.blobBase64=btoa(chunks.join(''));
+            copy.blobType=p.blob.type||'image/jpeg';
+          }else{
+            copy.blobBase64='';
+            copy.blobType='image/jpeg';
+          }
           encodedPhotos.push(copy);
-          if(i%3===2) await new Promise(r=>setTimeout(r,0));
+
+          // Yield on every photo for iPhone Safari responsiveness.
+          await new Promise(resolve=>setTimeout(resolve,0));
+          setProgress(`バックアップ準備中 ${i+1} / ${ids.length}`,i+1,ids.length);
         }
+
+        setProgress('旅程・設定データをまとめています…',ids.length,ids.length);
         const localStorageData={};
         for(let i=0;i<localStorage.length;i++){
           const key=localStorage.key(i);
           localStorageData[key]=localStorage.getItem(key);
         }
-        const payload={format:'travel-log-complete-backup',version:1,createdAt:new Date().toISOString(),localStorage:localStorageData,photos:encodedPhotos};
-        const backupBlob=new Blob([JSON.stringify(payload)],{type:'application/json'});
-        const url=URL.createObjectURL(backupBlob), a=document.createElement('a');
+
+        const payload={
+          format:'travel-log-complete-backup',
+          version:2,
+          createdAt:new Date().toISOString(),
+          photoCount:encodedPhotos.length,
+          rawPhotoBytes:rawBytes,
+          localStorage:localStorageData,
+          photos:encodedPhotos
+        };
+
+        setProgress('バックアップファイルを作成しています…',ids.length,ids.length);
+        const json=JSON.stringify(payload);
+        const backupBlob=new Blob([json],{type:'application/json'});
+        // Drop the large JSON string reference as soon as Blob is created.
+        const url=URL.createObjectURL(backupBlob);
+        const a=document.createElement('a');
         const d=new Date(),pad=n=>String(n).padStart(2,'0');
         a.href=url;
         a.download=`travel_log_backup_${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}.travelbackup`;
-        document.body.appendChild(a); a.click(); a.remove();
-        setTimeout(()=>URL.revokeObjectURL(url),1000);
-        alert(`完全バックアップを作成しました。\n写真 ${photos.length}枚を含みます。`);
-      }catch(error){ console.error(error); alert('完全バックアップの作成に失敗しました。'); }
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(()=>URL.revokeObjectURL(url),5000);
+
+        const mb=(backupBlob.size/1024/1024).toFixed(1);
+        setProgress(`完了：写真 ${encodedPhotos.length}枚・バックアップ約 ${mb} MB`,ids.length,ids.length);
+        alert(`完全バックアップを作成しました。\n写真 ${encodedPhotos.length}枚\n約 ${mb} MB`);
+      }catch(error){
+        console.error('complete backup failed',error);
+        setProgress(`バックアップ失敗：${error?.message||String(error)}`,0,1);
+        alert(`完全バックアップの作成に失敗しました。\n${error?.message||String(error)}`);
+      }finally{
+        btn.disabled=false;
+      }
     }
 
     async function importCompleteBackup(file){
       try{
         const payload=JSON.parse(await file.text());
-        if(payload?.format!=='travel-log-complete-backup'||payload?.version!==1){ alert('travel logの完全バックアップファイルではありません。'); return; }
+        if(payload?.format!=='travel-log-complete-backup'||![1,2].includes(payload?.version)){ alert('travel logの完全バックアップファイルではありません。'); return; }
         if(!confirm(`このバックアップから復元します。\n現在の編集内容と写真はバックアップ内容に置き換わります。\n\n写真 ${payload.photos?.length||0}枚\n続けますか？`)) return;
         localStorage.clear();
         Object.entries(payload.localStorage||{}).forEach(([k,v])=>localStorage.setItem(k,v));
