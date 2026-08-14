@@ -3883,30 +3883,86 @@ document.addEventListener('click', event => {
 
 // Personal photo album. Images are stored in IndexedDB so the HTML itself does not grow with every photo.
     const PHOTO_DB_NAME = 'GavinTravelPhotos';
-    const PHOTO_DB_VERSION = 1;
+    const PHOTO_DB_VERSION = 2;
     const PHOTO_STORE = 'photos';
+    const PHOTO_META_STORE = 'photoMeta';
     window.personalPhotos = window.personalPhotos || [];
     let activePhotoId = null;
+
+    function photoMetaFromRecord(record){
+      return {
+        id:record.id,
+        day:record.day,
+        eventKey:record.eventKey || '',
+        eventName:record.eventName || '',
+        title:record.title || '',
+        note:record.note || '',
+        fileName:record.fileName || '',
+        createdAt:record.createdAt || ''
+      };
+    }
 
     function photoDbOpen(){
       return new Promise((resolve,reject)=>{
         const req=indexedDB.open(PHOTO_DB_NAME,PHOTO_DB_VERSION);
-        req.onupgradeneeded=()=>{ if(!req.result.objectStoreNames.contains(PHOTO_STORE)) req.result.createObjectStore(PHOTO_STORE,{keyPath:'id'}); };
-        req.onsuccess=()=>resolve(req.result); req.onerror=()=>reject(req.error);
+        req.onupgradeneeded=event=>{
+          const db=req.result;
+          const tx=req.transaction;
+          let photoStore;
+          if(!db.objectStoreNames.contains(PHOTO_STORE)){
+            photoStore=db.createObjectStore(PHOTO_STORE,{keyPath:'id'});
+          }else{
+            photoStore=tx.objectStore(PHOTO_STORE);
+          }
+          let metaStore;
+          if(!db.objectStoreNames.contains(PHOTO_META_STORE)){
+            metaStore=db.createObjectStore(PHOTO_META_STORE,{keyPath:'id'});
+          }else{
+            metaStore=tx.objectStore(PHOTO_META_STORE);
+          }
+          if(event.oldVersion < 2){
+            const cursorReq=photoStore.openCursor();
+            cursorReq.onsuccess=()=>{
+              const cursor=cursorReq.result;
+              if(!cursor) return;
+              metaStore.put(photoMetaFromRecord(cursor.value));
+              cursor.continue();
+            };
+          }
+        };
+        req.onsuccess=()=>resolve(req.result);
+        req.onerror=()=>reject(req.error);
       });
     }
+
     async function photoDbAll(){
       const db=await photoDbOpen();
       return await new Promise((resolve,reject)=>{
-        const tx=db.transaction(PHOTO_STORE,'readonly'), req=tx.objectStore(PHOTO_STORE).getAll();
-        req.onsuccess=()=>resolve(req.result||[]); req.onerror=()=>reject(req.error);
+        const tx=db.transaction(PHOTO_META_STORE,'readonly');
+        const req=tx.objectStore(PHOTO_META_STORE).getAll();
+        req.onsuccess=()=>resolve(req.result||[]);
+        req.onerror=()=>reject(req.error);
       });
     }
+
+    async function photoDbGet(id){
+      const db=await photoDbOpen();
+      return await new Promise((resolve,reject)=>{
+        const tx=db.transaction(PHOTO_STORE,'readonly');
+        const req=tx.objectStore(PHOTO_STORE).get(id);
+        req.onsuccess=()=>resolve(req.result||null);
+        req.onerror=()=>reject(req.error);
+      });
+    }
+
     async function photoDbPut(record){
       const db=await photoDbOpen();
       return await new Promise((resolve,reject)=>{
-        const tx=db.transaction(PHOTO_STORE,'readwrite'); tx.objectStore(PHOTO_STORE).put(record);
-        tx.oncomplete=resolve; tx.onerror=()=>reject(tx.error);
+        const tx=db.transaction([PHOTO_STORE,PHOTO_META_STORE],'readwrite');
+        tx.objectStore(PHOTO_STORE).put(record);
+        tx.objectStore(PHOTO_META_STORE).put(photoMetaFromRecord(record));
+        tx.oncomplete=resolve;
+        tx.onerror=()=>reject(tx.error);
       });
     }
     function itineraryEventOptions(){
@@ -3972,21 +4028,26 @@ document.addEventListener('click', event => {
       }
     }
     const photoObjectUrlCache = new Map();
+    const photoBlobLoadPromises = new Map();
 
-    function photoUrl(photo){
-      if(!photo?.id || !photo?.blob) return '';
-      if(photoObjectUrlCache.has(photo.id)) return photoObjectUrlCache.get(photo.id);
-      const url=URL.createObjectURL(photo.blob);
-      photoObjectUrlCache.set(photo.id,url);
-      return url;
-    }
+    async function photoUrlById(id){
+      if(!id) return '';
+      if(photoObjectUrlCache.has(id)) return photoObjectUrlCache.get(id);
+      if(photoBlobLoadPromises.has(id)) return photoBlobLoadPromises.get(id);
 
-    function releaseUnusedPhotoUrls(keepIds=new Set()){
-      for(const [id,url] of photoObjectUrlCache.entries()){
-        if(!keepIds.has(id)){
-          try{ URL.revokeObjectURL(url); }catch(_){}
-          photoObjectUrlCache.delete(id);
-        }
+      const promise=(async()=>{
+        const record=await photoDbGet(id);
+        if(!record?.blob) return '';
+        const url=URL.createObjectURL(record.blob);
+        photoObjectUrlCache.set(id,url);
+        return url;
+      })();
+
+      photoBlobLoadPromises.set(id,promise);
+      try{
+        return await promise;
+      }finally{
+        photoBlobLoadPromises.delete(id);
       }
     }
 
@@ -3994,15 +4055,13 @@ document.addEventListener('click', event => {
     function ensurePhotoLazyObserver(){
       if(photoLazyObserver || !('IntersectionObserver' in window)) return;
       photoLazyObserver=new IntersectionObserver(entries=>{
-        entries.forEach(entry=>{
+        entries.forEach(async entry=>{
           if(!entry.isIntersecting) return;
           const img=entry.target;
-          const id=img.dataset.photoId;
-          const photo=(window.personalPhotos||[]).find(p=>p.id===id);
-          if(photo && !img.getAttribute('src')){
-            img.setAttribute('src',photoUrl(photo));
-          }
           photoLazyObserver.unobserve(img);
+          if(img.getAttribute('src')) return;
+          const url=await photoUrlById(img.dataset.photoId);
+          if(url && !img.getAttribute('src')) img.setAttribute('src',url);
         });
       },{root:null,rootMargin:'700px 0px',threshold:0.01});
     }
@@ -4010,11 +4069,9 @@ document.addEventListener('click', event => {
     function bindLazyPhotoThumbs(){
       ensurePhotoLazyObserver();
       document.querySelectorAll('img.photo-thumb-img[data-photo-id]').forEach(img=>{
-        img.addEventListener('error',()=>{
+        img.addEventListener('error',async()=>{
           if(img.dataset.retryDone==='1') return;
           const id=img.dataset.photoId;
-          const photo=(window.personalPhotos||[]).find(p=>p.id===id);
-          if(!photo) return;
           img.dataset.retryDone='1';
           const oldUrl=photoObjectUrlCache.get(id);
           if(oldUrl){
@@ -4022,18 +4079,34 @@ document.addEventListener('click', event => {
             photoObjectUrlCache.delete(id);
           }
           img.removeAttribute('src');
-          requestAnimationFrame(()=>img.setAttribute('src',photoUrl(photo)));
-        },{once:false});
+          const fresh=await photoUrlById(id);
+          if(fresh) img.setAttribute('src',fresh);
+        });
 
         if(photoLazyObserver){
           photoLazyObserver.observe(img);
         }else{
-          const id=img.dataset.photoId;
-          const photo=(window.personalPhotos||[]).find(p=>p.id===id);
-          if(photo && !img.getAttribute('src')) img.setAttribute('src',photoUrl(photo));
+          (async()=>{
+            if(img.getAttribute('src')) return;
+            const url=await photoUrlById(img.dataset.photoId);
+            if(url) img.setAttribute('src',url);
+          })();
         }
       });
     }
+
+    async function setPhotoDetailImage(photoId){
+      const img=document.getElementById('photoDetailImage');
+      if(!img) return;
+      img.removeAttribute('src');
+      const requestedId=photoId;
+      img.dataset.photoId=requestedId || '';
+      const url=await photoUrlById(requestedId);
+      if(url && img.dataset.photoId===requestedId){
+        img.setAttribute('src',url);
+      }
+    }
+
     let activePhotoEventFilter = '';
     let itineraryPhotoProgrammaticOpen = false;
 
@@ -4071,7 +4144,7 @@ document.addEventListener('click', event => {
         </section>`).join('');
       const active=rows.find(p=>p.id===activePhotoId)||rows[0], idx=rows.findIndex(p=>p.id===active.id);
       document.getElementById('photoDetailCounter').textContent=`${idx+1} / ${rows.length}`;
-      document.getElementById('photoDetailImage').src=photoUrl(active);
+      setPhotoDetailImage(active.id);
       document.getElementById('photoDetailTitle').textContent=active.title||active.eventName||'旅行写真';
       document.getElementById('photoDetailMeta').textContent=`2026年8月${active.day}日${active.eventName?' ・ '+active.eventName:''}`;
       document.getElementById('photoDetailNote').textContent=active.note||'';
