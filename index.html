@@ -1625,7 +1625,7 @@
             <h2 id="myPageTitle">マイページ</h2>
             <p>travel log</p>
             <div class="mypage-update-info">
-              <div>アプリ更新：<span id="appUpdatedAt">2026/08/15 12:46</span></div>
+              <div>アプリ更新：<span id="appUpdatedAt">2026/08/15 12:55</span></div>
               <div>データ最終更新：<span id="dataUpdatedAt">—</span></div>
             </div>
           </div>
@@ -3548,6 +3548,39 @@ function renderItinerary(day) {
     function loadRestoreState(){try{return JSON.parse(localStorage.getItem(RESTORE_STATE_KEY)||'null')}catch(_){return null}}
 
 
+    async function restorePutBinaryWithDb(db,record,arrayBuffer,mimeType){
+      return await new Promise((resolve,reject)=>{
+        let settled=false;
+        const fail=(error)=>{
+          if(settled) return;
+          settled=true;
+          reject(error || new Error('IndexedDB書き込みエラー'));
+        };
+        try{
+          const stored={...record};
+          delete stored.blob;
+          stored.binaryData=arrayBuffer;
+          stored.binaryType=mimeType||'image/jpeg';
+
+          const tx=db.transaction([PHOTO_STORE,PHOTO_META_STORE],'readwrite');
+          const req1=tx.objectStore(PHOTO_STORE).put(stored);
+          const req2=tx.objectStore(PHOTO_META_STORE).put(photoMetaFromRecord(stored));
+
+          req1.onerror=()=>fail(req1.error || tx.error);
+          req2.onerror=()=>fail(req2.error || tx.error);
+          tx.onabort=()=>fail(tx.error || new Error('IndexedDBトランザクションが中断されました'));
+          tx.onerror=()=>fail(tx.error || new Error('IndexedDBトランザクションエラー'));
+          tx.oncomplete=()=>{
+            if(settled) return;
+            settled=true;
+            resolve();
+          };
+        }catch(error){
+          fail(error);
+        }
+      });
+    }
+
     async function restorePutWithDb(db,record){
       return await new Promise((resolve,reject)=>{
         let settled=false;
@@ -3701,21 +3734,21 @@ function renderItinerary(day) {
             throw new Error(`写真 ${i+1} のデータ位置が不正です`);
           }
 
-          // Create a standalone photo Blob. This avoids keeping a slice backed
-          // by the giant 374 MB backup file inside IndexedDB.
-          const independentBlob=await makeIndependentPhotoBlob(
-            file,
-            start,
-            end,
-            meta.binaryType||'image/jpeg'
-          );
+          // Safari/WebKit can fail when preparing Blob/File data for IndexedDB.
+          // Store one photo as ArrayBuffer instead; photoDbGet recreates a Blob on read.
+          const mimeType=meta.binaryType||'image/jpeg';
+          const photoBuffer=await file.slice(start,end).arrayBuffer();
 
           delete meta.binaryOffset;
           delete meta.binaryLength;
           delete meta.binaryType;
-          meta.blob=independentBlob;
 
-          await restorePutWithDb(restoreDb,meta);
+          await restorePutBinaryWithDb(
+            restoreDb,
+            meta,
+            photoBuffer,
+            mimeType
+          );
 
           // Record checkpoint only after the transaction completes.
           state.done=i+1;
@@ -4618,7 +4651,21 @@ document.addEventListener('click', event => {
       return await new Promise((resolve,reject)=>{
         const tx=db.transaction(PHOTO_STORE,'readonly');
         const req=tx.objectStore(PHOTO_STORE).get(id);
-        req.onsuccess=()=>resolve(req.result||null);
+        req.onsuccess=()=>{
+          const record=req.result||null;
+          if(record && !record.blob && record.binaryData){
+            try{
+              record.blob=new Blob(
+                [record.binaryData],
+                {type:record.binaryType||'image/jpeg'}
+              );
+            }catch(error){
+              reject(error);
+              return;
+            }
+          }
+          resolve(record);
+        };
         req.onerror=()=>reject(req.error);
       });
     }
@@ -4627,8 +4674,14 @@ document.addEventListener('click', event => {
       const db=await photoDbOpen();
       return await new Promise((resolve,reject)=>{
         const tx=db.transaction([PHOTO_STORE,PHOTO_META_STORE],'readwrite');
-        tx.objectStore(PHOTO_STORE).put(record);
-        tx.objectStore(PHOTO_META_STORE).put(photoMetaFromRecord(record));
+        const stored={...record};
+        // A normal photo save uses Blob; remove stale binary restore fields.
+        if(stored.blob){
+          delete stored.binaryData;
+          delete stored.binaryType;
+        }
+        tx.objectStore(PHOTO_STORE).put(stored);
+        tx.objectStore(PHOTO_META_STORE).put(photoMetaFromRecord(stored));
         tx.oncomplete=resolve;
         tx.onerror=()=>reject(tx.error);
       });
