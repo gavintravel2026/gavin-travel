@@ -1625,7 +1625,7 @@
             <h2 id="myPageTitle">マイページ</h2>
             <p>travel log</p>
             <div class="mypage-update-info">
-              <div>アプリ更新：<span id="appUpdatedAt">2026/08/14 15:52</span></div>
+              <div>アプリ更新：<span id="appUpdatedAt">2026/08/14 16:12</span></div>
               <div>データ最終更新：<span id="dataUpdatedAt">—</span></div>
             </div>
           </div>
@@ -3519,7 +3519,16 @@ function renderItinerary(day) {
         if(manifest?.format!=='travel-log-binary-backup'||manifest?.version!==1){
           alert('対応していないバックアップ形式です。'); return;
         }
-        if(!confirm(`この1個のバックアップから復元します。\n現在の編集内容と写真はバックアップ内容に置き換わります。\n\n写真 ${manifest.photoCount||0}枚\n続けますか？`)) return;
+        const currentPhotoCount=(await photoDbAll()).length;
+        const backupPhotoCount=manifest.photoCount||0;
+        if(!confirm(
+          `最終確認\n\n`+
+          `現在の写真：${currentPhotoCount}枚\n`+
+          `バックアップの写真：${backupPhotoCount}枚\n\n`+
+          `現在の旅程・設定・写真をバックアップ内容に置き換えます。\n`+
+          `復元中はこの画面を閉じないでください。\n\n`+
+          `復元を開始しますか？`
+        )) return;
 
         const box=document.getElementById('backupProgressBox');
         const text=document.getElementById('backupProgressText');
@@ -3549,8 +3558,24 @@ function renderItinerary(day) {
           bar.value=i+1;
           await new Promise(r=>setTimeout(r,0));
         }
-        text.textContent=`復元完了：写真 ${manifest.photos?.length||0}枚`;
-        alert('復元が完了しました。ページを再読み込みします。');
+        const restoredPhotos=await photoDbAll();
+        const restoredCount=restoredPhotos.length;
+        const expectedCount=manifest.photos?.length||0;
+        const itineraryRestored=Object.keys(manifest.localStorage||{}).length>0;
+        if(restoredCount!==expectedCount){
+          throw new Error(`写真の復元枚数が一致しません（${restoredCount}/${expectedCount}枚）`);
+        }
+        if(!itineraryRestored){
+          throw new Error('旅程・設定データの復元を確認できません');
+        }
+        text.textContent=`復元完了：写真 ${restoredCount}/${expectedCount}枚・旅程データ復元済み`;
+        alert(
+          `復元成功\n`+
+          `写真：${restoredCount}/${expectedCount}枚 復元\n`+
+          `旅程・設定データ：復元\n`+
+          `完了\n\n`+
+          `ページを再読み込みします。`
+        );
         location.reload();
       }catch(error){
         console.error(error);
