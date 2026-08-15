@@ -1632,7 +1632,7 @@
             <h2 id="myPageTitle">マイページ</h2>
             <p>travel log</p>
             <div class="mypage-update-info">
-              <div>アプリ更新：<span id="appUpdatedAt">2026/08/15 13:58</span></div>
+              <div>アプリ更新：<span id="appUpdatedAt">2026/08/15 15:05</span></div>
               <div>データ最終更新：<span id="dataUpdatedAt">—</span></div>
             </div>
           </div>
@@ -1814,6 +1814,7 @@
         <button type="button" class="manager-btn" id="managerAdd">＋ 予定を追加</button>
         <button type="button" class="manager-btn secondary" id="managerReset">変更を元に戻す</button>
         <button type="button" class="manager-btn secondary" id="completeBackupExport">完全バックアップ</button>
+        <button type="button" class="manager-btn secondary" id="completeBackupSave" style="display:none">ファイルに保存</button>
         <button type="button" class="manager-btn secondary" id="completeBackupVerify">バックアップを検証</button>
         <button type="button" class="manager-btn secondary" id="completeBackupImport">バックアップ復元</button>
         <input id="completeBackupVerifyFile" type="file" hidden>
@@ -3388,17 +3389,26 @@ function renderItinerary(day) {
       return Number(v);
     }
 
+    let preparedCompleteBackupBlob=null;
+    let preparedCompleteBackupFilename='';
+
     async function exportCompleteBackup(){
       const box=document.getElementById('backupProgressBox');
       const text=document.getElementById('backupProgressText');
       const bar=document.getElementById('backupProgressBar');
       const btn=document.getElementById('completeBackupExport');
+      const saveBtn=document.getElementById('completeBackupSave');
       const setProgress=(message,value,max)=>{
         box.style.display='block'; text.textContent=message;
         bar.max=Math.max(1,max||1); bar.value=Math.max(0,value||0);
       };
+
+      preparedCompleteBackupBlob=null;
+      preparedCompleteBackupFilename='';
+      if(saveBtn) saveBtn.style.display='none';
       btn.disabled=true;
       await acquireTravelWakeLock();
+
       try{
         setProgress('写真データを確認しています…',0,1);
         const db=await photoDbOpen();
@@ -3409,23 +3419,34 @@ function renderItinerary(day) {
           req.onerror=()=>reject(req.error);
         });
 
-        // Build only small metadata in memory. Image blobs remain binary.
         const photoMeta=[];
-        const photoBlobs=[];
+        const photoParts=[];
         let offset=0;
+
         for(let i=0;i<ids.length;i++){
           setProgress(`バックアップ準備中 ${i+1} / ${ids.length}`,i,ids.length);
-          const p=await photoDbGet(ids[i]);
-          if(!p?.blob) continue;
-          const meta={...p};
+          const raw=await rawPhotoDbGet(ids[i]);
+          if(!raw) continue;
+          const blob=blobFromStoredPhotoRecord(raw) ||
+            (raw.storage==='opfs' ? await opfsReadPhoto(raw) : null);
+          if(!(blob instanceof Blob) || !blob.size) continue;
+
+          const meta={...raw};
           delete meta.blob;
+          delete meta.binaryData;
+          delete meta.binaryType;
+          delete meta.storage;
+          delete meta.opfsName;
+          delete meta.opfsType;
+          delete meta.opfsSize;
           meta.binaryOffset=offset;
-          meta.binaryLength=p.blob.size;
-          meta.binaryType=p.blob.type||'image/jpeg';
+          meta.binaryLength=blob.size;
+          meta.binaryType=blob.type||'image/jpeg';
           photoMeta.push(meta);
-          photoBlobs.push(p.blob); // Blob reference only; no Base64/ArrayBuffer copy.
-          offset+=p.blob.size;
-          await new Promise(r=>setTimeout(r,0));
+          photoParts.push(blob);
+          offset+=blob.size;
+
+          if((i+1)%8===0) await new Promise(r=>setTimeout(r,0));
         }
 
         const localStorageData={};
@@ -3446,25 +3467,47 @@ function renderItinerary(day) {
         const magic=new TextEncoder().encode(TL_BACKUP_MAGIC);
         const header=[magic,u64le(manifestBytes.byteLength),manifestBytes];
 
-        setProgress('1つのバックアップファイルを作成しています…',ids.length,ids.length);
-        // Blob concatenation keeps photos binary and avoids Base64's ~33% expansion.
-        const backupBlob=new Blob([...header,...photoBlobs],{type:'application/octet-stream'});
-        const url=URL.createObjectURL(backupBlob);
-        const a=document.createElement('a');
+        setProgress('バックアップファイルを組み立てています…',ids.length,ids.length);
+        preparedCompleteBackupBlob=new Blob([...header,...photoParts],{type:'application/octet-stream'});
         const d=new Date(),pad=n=>String(n).padStart(2,'0');
-        a.href=url;
-        a.download=`travel_log_backup_${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}.travelbackup`;
-        document.body.appendChild(a); a.click(); a.remove();
-        setTimeout(()=>URL.revokeObjectURL(url),10000);
+        preparedCompleteBackupFilename=`travel_log_backup_${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}.travelbackup`;
 
-        const mb=(backupBlob.size/1024/1024).toFixed(1);
-        setProgress(`完了：写真 ${photoMeta.length}枚・約 ${mb} MB`,ids.length,ids.length);
-        alert(`完全バックアップを作成しました。\n写真 ${photoMeta.length}枚\n約 ${mb} MB`);
+        const mb=(preparedCompleteBackupBlob.size/1024/1024).toFixed(1);
+        setProgress(`準備完了：写真 ${photoMeta.length}枚・約 ${mb} MB。「ファイルに保存」を押してください。`,ids.length,ids.length);
+        if(saveBtn){
+          saveBtn.style.display='inline-flex';
+          saveBtn.textContent=`ファイルに保存（約${mb}MB）`;
+        }
       }catch(error){
         console.error(error);
+        preparedCompleteBackupBlob=null;
+        preparedCompleteBackupFilename='';
+        if(saveBtn) saveBtn.style.display='none';
         setProgress(`バックアップ失敗：${error?.message||String(error)}`,0,1);
-        alert(`完全バックアップの作成に失敗しました。\n${error?.message||String(error)}`);
-      }finally{ btn.disabled=false; }
+        alert(`完全バックアップの準備に失敗しました。\n${error?.message||String(error)}`);
+      }finally{
+        btn.disabled=false;
+        await releaseTravelWakeLock();
+      }
+    }
+
+    function savePreparedCompleteBackup(){
+      if(!(preparedCompleteBackupBlob instanceof Blob) || !preparedCompleteBackupBlob.size){
+        alert('先に「完全バックアップ」を押して、準備完了まで待ってください。');
+        return;
+      }
+
+      // This function is intentionally synchronous until a.click().
+      // On iPhone Safari this keeps the actual download inside the user's tap gesture.
+      const url=URL.createObjectURL(preparedCompleteBackupBlob);
+      const a=document.createElement('a');
+      a.href=url;
+      a.download=preparedCompleteBackupFilename || 'travel_log_backup.travelbackup';
+      a.style.display='none';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),60000);
     }
 
 
@@ -3875,6 +3918,7 @@ function renderItinerary(day) {
     }
 
     document.getElementById('completeBackupExport').addEventListener('click',exportCompleteBackup);
+    document.getElementById('completeBackupSave')?.addEventListener('click',savePreparedCompleteBackup);
     document.getElementById('completeBackupVerify').addEventListener('click',()=>document.getElementById('completeBackupVerifyFile').click());
     document.getElementById('completeBackupVerifyFile').addEventListener('change',async event=>{
       const file=event.target.files?.[0];
