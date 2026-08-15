@@ -1625,7 +1625,7 @@
             <h2 id="myPageTitle">マイページ</h2>
             <p>travel log</p>
             <div class="mypage-update-info">
-              <div>アプリ更新：<span id="appUpdatedAt">2026/08/15 12:55</span></div>
+              <div>アプリ更新：<span id="appUpdatedAt">2026/08/15 13:11</span></div>
               <div>データ最終更新：<span id="dataUpdatedAt">—</span></div>
             </div>
           </div>
@@ -1809,8 +1809,8 @@
         <button type="button" class="manager-btn secondary" id="completeBackupExport">完全バックアップ</button>
         <button type="button" class="manager-btn secondary" id="completeBackupVerify">バックアップを検証</button>
         <button type="button" class="manager-btn secondary" id="completeBackupImport">バックアップ復元</button>
-        <input id="completeBackupVerifyFile" type="file" accept=".travelbackup,application/octet-stream" hidden>
-        <input id="completeBackupFile" type="file" accept=".travelbackup,application/octet-stream" hidden>
+        <input id="completeBackupVerifyFile" type="file" hidden>
+        <input id="completeBackupFile" type="file" hidden>
       </div>
       <div id="backupProgressBox" style="display:none;margin:0 16px 12px;padding:12px 14px;border-radius:12px;background:#193429;border:1px solid rgba(255,255,255,.1);font-size:13px;font-weight:800;line-height:1.5">
         <div id="backupProgressText">バックアップ準備中…</div>
@@ -3559,7 +3559,7 @@ function renderItinerary(day) {
         try{
           const stored={...record};
           delete stored.blob;
-          stored.binaryData=arrayBuffer;
+          stored.binaryData=new Uint8Array(arrayBuffer);
           stored.binaryType=mimeType||'image/jpeg';
 
           const tx=db.transaction([PHOTO_STORE,PHOTO_META_STORE],'readwrite');
@@ -4646,6 +4646,61 @@ document.addEventListener('click', event => {
       });
     }
 
+    function normalizeStoredPhotoBytes(data){
+      if(!data) return null;
+
+      if(data instanceof ArrayBuffer){
+        const source=new Uint8Array(data);
+        const copy=new Uint8Array(source.byteLength);
+        copy.set(source);
+        return copy;
+      }
+
+      if(ArrayBuffer.isView(data)){
+        const source=new Uint8Array(data.buffer,data.byteOffset,data.byteLength);
+        const copy=new Uint8Array(source.byteLength);
+        copy.set(source);
+        return copy;
+      }
+
+      return null;
+    }
+
+    function detectStoredImageType(bytes,fallback){
+      if(bytes?.length>=3 && bytes[0]===0xFF && bytes[1]===0xD8 && bytes[2]===0xFF){
+        return 'image/jpeg';
+      }
+      if(bytes?.length>=8 &&
+         bytes[0]===0x89 && bytes[1]===0x50 && bytes[2]===0x4E && bytes[3]===0x47 &&
+         bytes[4]===0x0D && bytes[5]===0x0A && bytes[6]===0x1A && bytes[7]===0x0A){
+        return 'image/png';
+      }
+      if(bytes?.length>=12 &&
+         bytes[0]===0x52 && bytes[1]===0x49 && bytes[2]===0x46 && bytes[3]===0x46 &&
+         bytes[8]===0x57 && bytes[9]===0x45 && bytes[10]===0x42 && bytes[11]===0x50){
+        return 'image/webp';
+      }
+      return (fallback && String(fallback).startsWith('image/')) ? fallback : 'image/jpeg';
+    }
+
+    function blobFromStoredPhotoRecord(record){
+      if(!record) return null;
+
+      if(record.blob instanceof Blob && record.blob.size>0){
+        return record.blob;
+      }
+
+      const bytes=normalizeStoredPhotoBytes(record.binaryData);
+      if(!bytes || !bytes.byteLength) return null;
+
+      const type=detectStoredImageType(bytes,record.binaryType);
+      // Use a fresh typed-array copy. Safari can be unreliable when a Blob
+      // directly references structured-cloned IndexedDB buffers.
+      const safeBytes=new Uint8Array(bytes.byteLength);
+      safeBytes.set(bytes);
+      return new Blob([safeBytes],{type});
+    }
+
     async function photoDbGet(id){
       const db=await photoDbOpen();
       return await new Promise((resolve,reject)=>{
@@ -4653,12 +4708,10 @@ document.addEventListener('click', event => {
         const req=tx.objectStore(PHOTO_STORE).get(id);
         req.onsuccess=()=>{
           const record=req.result||null;
-          if(record && !record.blob && record.binaryData){
+          if(record){
             try{
-              record.blob=new Blob(
-                [record.binaryData],
-                {type:record.binaryType||'image/jpeg'}
-              );
+              const displayBlob=blobFromStoredPhotoRecord(record);
+              if(displayBlob) record.blob=displayBlob;
             }catch(error){
               reject(error);
               return;
@@ -4666,7 +4719,7 @@ document.addEventListener('click', event => {
           }
           resolve(record);
         };
-        req.onerror=()=>reject(req.error);
+        req.onerror=()=>reject(req.error||new Error('写真データの読み込みに失敗しました'));
       });
     }
 
@@ -4990,8 +5043,9 @@ document.addEventListener('click', event => {
 
       const promise=(async()=>{
         const record=await photoDbGet(id);
-        if(!record?.blob) return '';
-        const url=URL.createObjectURL(record.blob);
+        const blob=record?.blob;
+        if(!(blob instanceof Blob) || blob.size<=0) return '';
+        const url=URL.createObjectURL(blob);
         photoObjectUrlCache.set(id,url);
         return url;
       })();
@@ -5192,6 +5246,11 @@ document.addEventListener('click', event => {
     async function refreshPhotoAlbum(){
       try{
         window.personalPhotos=await photoDbAll();
+        // Drop any stale object URLs whenever the album is rebuilt.
+        for(const url of photoObjectUrlCache.values()){
+          try{URL.revokeObjectURL(url);}catch(_){}
+        }
+        photoObjectUrlCache.clear();
         renderPhotoAlbum(false);
         setTimeout(()=>scanMissingPhotoExif(),60);
       }catch(error){
