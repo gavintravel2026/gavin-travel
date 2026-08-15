@@ -1625,7 +1625,7 @@
             <h2 id="myPageTitle">マイページ</h2>
             <p>travel log</p>
             <div class="mypage-update-info">
-              <div>アプリ更新：<span id="appUpdatedAt">2026/08/14 16:12</span></div>
+              <div>アプリ更新：<span id="appUpdatedAt">2026/08/15 11:39</span></div>
               <div>データ最終更新：<span id="dataUpdatedAt">—</span></div>
             </div>
           </div>
@@ -1815,7 +1815,7 @@
       <div id="backupProgressBox" style="display:none;margin:0 16px 12px;padding:12px 14px;border-radius:12px;background:#193429;border:1px solid rgba(255,255,255,.1);font-size:13px;font-weight:800;line-height:1.5">
         <div id="backupProgressText">バックアップ準備中…</div>
         <progress id="backupProgressBar" value="0" max="1" style="width:100%;margin-top:8px"></progress>
-      </div>
+      </div><div id="restoreStatusBox" style="display:none;margin:0 16px 12px;padding:12px 14px;border-radius:12px;background:#193429;border:1px solid rgba(255,255,255,.1);font-size:13px;font-weight:800;line-height:1.55"><div>復元状況</div><div id="restoreStatusText" style="margin-top:4px;color:#d6b55b"></div><div id="restoreErrorText" style="margin-top:5px;color:#ffb4ab;white-space:pre-wrap"></div></div>
 
       <div class="manager-day-label" id="managerDayLabel"></div>
       <div class="manager-list" id="managerList"></div>
@@ -3334,6 +3334,40 @@ function renderItinerary(day) {
     // Binary single-file format:
     // [8-byte magic "TLGBIN01"][8-byte LE manifest length][UTF-8 manifest][raw image bytes...]
     const TL_BACKUP_MAGIC='TLGBIN01';
+    let travelWakeLock=null;
+
+    async function acquireTravelWakeLock(){
+      try{
+        if(!('wakeLock' in navigator)) return false;
+        if(travelWakeLock) return true;
+        travelWakeLock=await navigator.wakeLock.request('screen');
+        travelWakeLock.addEventListener('release',()=>{travelWakeLock=null;});
+        return true;
+      }catch(error){
+        console.warn('Wake Lock unavailable',error);
+        travelWakeLock=null;
+        return false;
+      }
+    }
+
+    async function releaseTravelWakeLock(){
+      try{
+        if(travelWakeLock) await travelWakeLock.release();
+      }catch(_){}
+      travelWakeLock=null;
+    }
+
+    document.addEventListener('visibilitychange',async()=>{
+      if(document.visibilityState==='visible'){
+        const restoreState=typeof loadRestoreState==='function' ? loadRestoreState() : null;
+        const backupBusy=document.getElementById('completeBackupExport')?.disabled;
+        if((restoreState?.done<restoreState?.total)||backupBusy){
+          await acquireTravelWakeLock();
+        }
+      }
+    });
+
+
 
     function u64le(n){
       const b=new Uint8Array(8);
@@ -3357,6 +3391,7 @@ function renderItinerary(day) {
         bar.max=Math.max(1,max||1); bar.value=Math.max(0,value||0);
       };
       btn.disabled=true;
+      await acquireTravelWakeLock();
       try{
         setProgress('写真データを確認しています…',0,1);
         const db=await photoDbOpen();
@@ -3500,88 +3535,85 @@ function renderItinerary(day) {
       }
     }
 
+    const RESTORE_STATE_KEY='travelLogRestoreStateV1';
+    function showRestoreState(state){
+      const box=document.getElementById('restoreStatusBox'),status=document.getElementById('restoreStatusText'),error=document.getElementById('restoreErrorText');
+      if(!box||!status||!error)return;
+      box.style.display='block';
+      const done=state?.done||0,total=state?.total||0;
+      status.textContent=`${done} / ${total} 復元済み`;
+      error.textContent=state?.error?`停止位置：${Math.min(done+1,total)} / ${total}\n${state.error}`:'';
+    }
+    function saveRestoreState(state){localStorage.setItem(RESTORE_STATE_KEY,JSON.stringify(state));showRestoreState(state);}
+    function loadRestoreState(){try{return JSON.parse(localStorage.getItem(RESTORE_STATE_KEY)||'null')}catch(_){return null}}
+
     async function importCompleteBackup(file){
+      let state=null;
+      await acquireTravelWakeLock();
       try{
-        // Read only the 16-byte header first.
         const head=new Uint8Array(await file.slice(0,16).arrayBuffer());
-        const magic=new TextDecoder().decode(head.slice(0,8));
-        if(magic!==TL_BACKUP_MAGIC){
-          alert('この版で作成したtravel log完全バックアップではありません。');
-          return;
-        }
+        if(new TextDecoder().decode(head.slice(0,8))!==TL_BACKUP_MAGIC)throw new Error('travel logのバックアップ形式ではありません');
         const manifestLength=readU64le(new DataView(head.buffer),8);
-        if(!Number.isSafeInteger(manifestLength)||manifestLength<=0||manifestLength>50*1024*1024){
-          alert('バックアップファイルが壊れている可能性があります。');
-          return;
+        if(!Number.isSafeInteger(manifestLength)||manifestLength<=0||manifestLength>50*1024*1024)throw new Error('管理データが壊れています');
+        const binaryStart=16+manifestLength;
+        const manifest=JSON.parse(await file.slice(16,binaryStart).text());
+        if(manifest?.format!=='travel-log-binary-backup'||manifest?.version!==1)throw new Error('対応していないバックアップ形式です');
+
+        const backupId=`${file.name}|${file.size}|${manifest.createdAt||''}|${manifest.photoCount||0}`;
+        const previous=loadRestoreState();
+        const total=manifest.photos?.length||0;
+        const canResume=previous?.backupId===backupId&&previous.done>0&&previous.done<total;
+
+        if(canResume){
+          if(!confirm(`途中から復元を再開できます。\n\n${previous.done} / ${previous.total} 復元済み\n次は ${previous.done+1} 枚目から再開します。\n\n復元を再開しますか？`))return;
+          state={...previous,error:''};
+        }else{
+          const currentPhotoCount=(await photoDbAll()).length;
+          if(!confirm(`最終確認\n\n現在の写真：${currentPhotoCount}枚\nバックアップの写真：${total}枚\n\n現在の旅程・設定・写真をバックアップ内容に置き換えます。\n復元中はこの画面を閉じないでください。\n\n復元を開始しますか？`))return;
+          state={backupId,done:0,total,error:'',startedAt:new Date().toISOString()};
+          saveRestoreState(state);
+          const checkpoint=localStorage.getItem(RESTORE_STATE_KEY);
+          localStorage.clear();
+          Object.entries(manifest.localStorage||{}).forEach(([k,v])=>localStorage.setItem(k,v));
+          localStorage.setItem(RESTORE_STATE_KEY,checkpoint);
+          const db=await photoDbOpen();
+          await new Promise((resolve,reject)=>{
+            const tx=db.transaction([PHOTO_STORE,PHOTO_META_STORE],'readwrite');
+            tx.objectStore(PHOTO_STORE).clear();tx.objectStore(PHOTO_META_STORE).clear();
+            tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);
+          });
         }
-        const manifestStart=16, binaryStart=manifestStart+manifestLength;
-        const manifest=JSON.parse(await file.slice(manifestStart,binaryStart).text());
-        if(manifest?.format!=='travel-log-binary-backup'||manifest?.version!==1){
-          alert('対応していないバックアップ形式です。'); return;
-        }
-        const currentPhotoCount=(await photoDbAll()).length;
-        const backupPhotoCount=manifest.photoCount||0;
-        if(!confirm(
-          `最終確認\n\n`+
-          `現在の写真：${currentPhotoCount}枚\n`+
-          `バックアップの写真：${backupPhotoCount}枚\n\n`+
-          `現在の旅程・設定・写真をバックアップ内容に置き換えます。\n`+
-          `復元中はこの画面を閉じないでください。\n\n`+
-          `復元を開始しますか？`
-        )) return;
 
-        const box=document.getElementById('backupProgressBox');
-        const text=document.getElementById('backupProgressText');
-        const bar=document.getElementById('backupProgressBar');
-        box.style.display='block'; bar.max=Math.max(1,manifest.photos?.length||1); bar.value=0;
+        const box=document.getElementById('backupProgressBox'),text=document.getElementById('backupProgressText'),bar=document.getElementById('backupProgressBar');
+        box.style.display='block';bar.max=Math.max(1,total);bar.value=state.done;showRestoreState(state);
 
-        localStorage.clear();
-        Object.entries(manifest.localStorage||{}).forEach(([k,v])=>localStorage.setItem(k,v));
-
-        const db=await photoDbOpen();
-        await new Promise((resolve,reject)=>{
-          const tx=db.transaction([PHOTO_STORE,PHOTO_META_STORE],'readwrite');
-          tx.objectStore(PHOTO_STORE).clear(); tx.objectStore(PHOTO_META_STORE).clear();
-          tx.oncomplete=resolve; tx.onerror=()=>reject(tx.error);
-        });
-
-        for(let i=0;i<(manifest.photos||[]).length;i++){
+        for(let i=state.done;i<total;i++){
           const meta={...manifest.photos[i]};
-          text.textContent=`復元中 ${i+1} / ${manifest.photos.length}`;
-          bar.value=i;
-          const start=binaryStart+meta.binaryOffset;
-          const end=start+meta.binaryLength;
-          const blob=file.slice(start,end,meta.binaryType||'image/jpeg'); // no Base64
-          delete meta.binaryOffset; delete meta.binaryLength; delete meta.binaryType;
-          meta.blob=blob;
+          text.textContent=`復元中 ${i+1} / ${total}`;
+          const blob=file.slice(binaryStart+meta.binaryOffset,binaryStart+meta.binaryOffset+meta.binaryLength,meta.binaryType||'image/jpeg');
+          delete meta.binaryOffset;delete meta.binaryLength;delete meta.binaryType;meta.blob=blob;
           await photoDbPut(meta);
-          bar.value=i+1;
-          await new Promise(r=>setTimeout(r,0));
+          state.done=i+1;state.error='';saveRestoreState(state);bar.value=state.done;
+          await new Promise(r=>setTimeout(r,(i+1)%5===0?150:10));
         }
-        const restoredPhotos=await photoDbAll();
-        const restoredCount=restoredPhotos.length;
-        const expectedCount=manifest.photos?.length||0;
-        const itineraryRestored=Object.keys(manifest.localStorage||{}).length>0;
-        if(restoredCount!==expectedCount){
-          throw new Error(`写真の復元枚数が一致しません（${restoredCount}/${expectedCount}枚）`);
-        }
-        if(!itineraryRestored){
-          throw new Error('旅程・設定データの復元を確認できません');
-        }
-        text.textContent=`復元完了：写真 ${restoredCount}/${expectedCount}枚・旅程データ復元済み`;
-        alert(
-          `復元成功\n`+
-          `写真：${restoredCount}/${expectedCount}枚 復元\n`+
-          `旅程・設定データ：復元\n`+
-          `完了\n\n`+
-          `ページを再読み込みします。`
-        );
-        location.reload();
+
+        const restoredCount=(await photoDbAll()).length;
+        if(restoredCount!==total)throw new Error(`写真の復元枚数が一致しません（${restoredCount}/${total}枚）`);
+        if(!Object.keys(manifest.localStorage||{}).length)throw new Error('旅程・設定データの復元を確認できません');
+        state.done=total;state.error='';saveRestoreState(state);
+        text.textContent=`復元完了：写真 ${restoredCount}/${total}枚・旅程データ復元済み`;
+        alert(`復元成功\n写真：${restoredCount}/${total}枚 復元\n旅程・設定データ：復元\n完了`);
+        localStorage.removeItem(RESTORE_STATE_KEY);location.reload();
       }catch(error){
         console.error(error);
-        alert(`バックアップの復元に失敗しました。\n${error?.message||String(error)}`);
+        if(state){state.error=error?.message||String(error);state.failedAt=new Date().toISOString();saveRestoreState(state);}
+        alert(`復元が途中で停止しました。\n${state?.done||0} / ${state?.total||0} 復元済み\n\n${error?.message||String(error)}\n\n同じバックアップをもう一度選ぶと続きから再開できます。`);
+      }finally{
+        await releaseTravelWakeLock();
       }
     }
+
+    {const st=loadRestoreState();if(st?.total)showRestoreState(st);}
 
     document.getElementById('completeBackupExport').addEventListener('click',exportCompleteBackup);
     document.getElementById('completeBackupVerify').addEventListener('click',()=>document.getElementById('completeBackupVerifyFile').click());
