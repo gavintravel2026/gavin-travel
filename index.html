@@ -1632,7 +1632,7 @@
             <h2 id="myPageTitle">マイページ</h2>
             <p>travel log</p>
             <div class="mypage-update-info">
-              <div>アプリ更新：<span id="appUpdatedAt">2026/08/15 15:05</span></div>
+              <div>アプリ更新：<span id="appUpdatedAt">2026/08/15 15:20</span></div>
               <div>データ最終更新：<span id="dataUpdatedAt">—</span></div>
             </div>
           </div>
@@ -1817,6 +1817,7 @@
         <button type="button" class="manager-btn secondary" id="completeBackupSave" style="display:none">ファイルに保存</button>
         <button type="button" class="manager-btn secondary" id="completeBackupVerify">バックアップを検証</button>
         <button type="button" class="manager-btn secondary" id="completeBackupImport">バックアップ復元</button>
+        <button type="button" class="manager-btn secondary" id="storageDiagnosticBtn">容量を診断</button>
         <input id="completeBackupVerifyFile" type="file" hidden>
         <input id="completeBackupFile" type="file" hidden>
       </div>
@@ -1824,6 +1825,7 @@
         <div id="backupProgressText">バックアップ準備中…</div>
         <progress id="backupProgressBar" value="0" max="1" style="width:100%;margin-top:8px"></progress>
       </div><div id="restoreStatusBox" style="display:none;margin:0 16px 12px;padding:12px 14px;border-radius:12px;background:#193429;border:1px solid rgba(255,255,255,.1);font-size:13px;font-weight:800;line-height:1.55"><div>復元状況</div><div id="restoreStatusText" style="margin-top:4px;color:#d6b55b"></div><div id="restoreErrorText" style="margin-top:5px;color:#ffb4ab;white-space:pre-wrap"></div></div>
+      <div id="storageDiagnosticBox" style="display:none;margin:0 16px 12px;padding:12px 14px;border-radius:12px;background:#193429;border:1px solid rgba(255,255,255,.1);font-size:13px;font-weight:800;line-height:1.55;white-space:pre-wrap"></div>
 
       <div class="manager-day-label" id="managerDayLabel"></div>
       <div class="manager-list" id="managerList"></div>
@@ -3925,6 +3927,85 @@ function renderItinerary(day) {
       if(file) await verifyCompleteBackup(file);
       event.target.value='';
     });
+
+    function formatDiagnosticMb(bytes){
+      return `${(Number(bytes||0)/1024/1024).toFixed(1)} MB`;
+    }
+
+    async function measurePhotoStoreBytes(){
+      const db=await photoDbOpen();
+      return await new Promise((resolve,reject)=>{
+        let count=0, binaryBytes=0, blobBytes=0, opfsBytes=0;
+        const tx=db.transaction(PHOTO_STORE,'readonly');
+        const req=tx.objectStore(PHOTO_STORE).openCursor();
+        req.onerror=()=>reject(req.error||new Error('写真DBを読み取れません'));
+        req.onsuccess=()=>{
+          const cursor=req.result;
+          if(!cursor){
+            try{db.close();}catch(_){}
+            resolve({count,binaryBytes,blobBytes,opfsBytes,total:binaryBytes+blobBytes+opfsBytes});
+            return;
+          }
+          const r=cursor.value||{};
+          count++;
+          if(r.binaryData instanceof ArrayBuffer) binaryBytes+=r.binaryData.byteLength;
+          else if(ArrayBuffer.isView(r.binaryData)) binaryBytes+=r.binaryData.byteLength;
+          if(r.blob instanceof Blob) blobBytes+=r.blob.size;
+          if(r.storage==='opfs') opfsBytes+=Number(r.opfsSize||0);
+          cursor.continue();
+        };
+      });
+    }
+
+    async function runStorageDiagnostic(){
+      const btn=document.getElementById('storageDiagnosticBtn');
+      const box=document.getElementById('storageDiagnosticBox');
+      if(btn) btn.disabled=true;
+      if(box){box.style.display='block';box.textContent='容量を確認しています…';}
+      try{
+        const [est,photos]=await Promise.all([
+          navigator.storage?.estimate ? navigator.storage.estimate() : Promise.resolve({}),
+          measurePhotoStoreBytes()
+        ]);
+        const usage=Number(est?.usage||0);
+        const quota=Number(est?.quota||0);
+        const other=Math.max(0,usage-photos.total);
+        let lsBytes=0;
+        try{
+          for(let i=0;i<localStorage.length;i++){
+            const k=localStorage.key(i)||'';
+            const v=localStorage.getItem(k)||'';
+            lsBytes+=(k.length+v.length)*2;
+          }
+        }catch(_){}
+        const details=est?.usageDetails && typeof est.usageDetails==='object'
+          ? Object.entries(est.usageDetails).map(([k,v])=>`${k}: ${formatDiagnosticMb(v)}`).join('\n')
+          : '';
+        const lines=[
+          `Safari API 推定使用量：${usage?formatDiagnosticMb(usage):'取得不可'}`,
+          `写真実データ：${formatDiagnosticMb(photos.total)}（${photos.count}枚）`,
+          `  IndexedDBバイナリ：${formatDiagnosticMb(photos.binaryBytes)}`,
+          `  Blob：${formatDiagnosticMb(photos.blobBytes)}`,
+          `  OPFS：${formatDiagnosticMb(photos.opfsBytes)}`,
+          `その他／差分：約 ${formatDiagnosticMb(other)}`,
+          `localStorage：約 ${formatDiagnosticMb(lsBytes)}`,
+          quota?`Safari API クォータ：${formatDiagnosticMb(quota)}`:''
+        ].filter(Boolean);
+        if(details) lines.push('', '内訳:', details);
+        lines.push('', 'この表示をスクリーンショットして送ってください。');
+        const result=lines.join('\n');
+        if(box) box.textContent=result;
+        alert(result);
+      }catch(error){
+        const msg=`容量診断に失敗しました。\n${error?.message||String(error)}`;
+        if(box) box.textContent=msg;
+        alert(msg);
+      }finally{
+        if(btn) btn.disabled=false;
+      }
+    }
+    document.getElementById('storageDiagnosticBtn')?.addEventListener('click',runStorageDiagnostic);
+
     document.getElementById('completeBackupImport').addEventListener('click',()=>document.getElementById('completeBackupFile').click());
     document.getElementById('completeBackupFile').addEventListener('change',async event=>{
       const file=event.target.files?.[0]; if(file) await importCompleteBackup(file); event.target.value='';
