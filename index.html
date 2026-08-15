@@ -1510,7 +1510,6 @@
           <p id="photoCountLabel">写真 0枚</p>
         </div>
         <div class="photo-head-actions">
-          <button type="button" class="photo-audit-btn" id="photoStorageCleanupBtn">容量を整理</button>
           <button type="button" class="photo-add-btn" id="photoAddBtn">＋ 写真を追加</button>
         </div>
         <input type="file" id="photoAddInput" accept="image/*" multiple hidden>
@@ -1626,7 +1625,7 @@
             <h2 id="myPageTitle">マイページ</h2>
             <p>travel log</p>
             <div class="mypage-update-info">
-              <div>アプリ更新：<span id="appUpdatedAt">2026/08/15 13:37</span></div>
+              <div>アプリ更新：<span id="appUpdatedAt">2026/08/15 13:52</span></div>
               <div>データ最終更新：<span id="dataUpdatedAt">—</span></div>
             </div>
           </div>
@@ -3549,21 +3548,77 @@ function renderItinerary(day) {
     function loadRestoreState(){try{return JSON.parse(localStorage.getItem(RESTORE_STATE_KEY)||'null')}catch(_){return null}}
 
 
+
+    async function makeLightweightRestoreBuffer(arrayBuffer,mimeType){
+      const sourceBlob=new Blob([arrayBuffer],{type:mimeType||'image/jpeg'});
+      let bitmap=null;
+      try{
+        bitmap=await createImageBitmap(sourceBlob);
+        const maxSide=1600;
+        const scale=Math.min(1,maxSide/Math.max(bitmap.width,bitmap.height));
+        const width=Math.max(1,Math.round(bitmap.width*scale));
+        const height=Math.max(1,Math.round(bitmap.height*scale));
+
+        const canvas=document.createElement('canvas');
+        canvas.width=width;
+        canvas.height=height;
+        const ctx=canvas.getContext('2d',{alpha:false});
+        if(!ctx) throw new Error('画像変換用Canvasを作成できません');
+        ctx.drawImage(bitmap,0,0,width,height);
+
+        const jpegBlob=await new Promise((resolve,reject)=>{
+          canvas.toBlob(
+            blob=>blob?resolve(blob):reject(new Error('画像の軽量化に失敗しました')),
+            'image/jpeg',
+            0.78
+          );
+        });
+
+        return {
+          buffer:await jpegBlob.arrayBuffer(),
+          type:'image/jpeg',
+          size:jpegBlob.size
+        };
+      }finally{
+        try{bitmap?.close();}catch(_){}
+      }
+    }
+
     async function restorePutBinaryWithDb(db,record,arrayBuffer,mimeType){
-      const blob=new Blob([arrayBuffer],{type:mimeType||'image/jpeg'});
-      const opfsInfo=await opfsWritePhoto(record.id,blob);
-      const stored={...record,...opfsInfo};
+      const light=await makeLightweightRestoreBuffer(arrayBuffer,mimeType);
+      const stored={...record};
       delete stored.blob;
-      delete stored.binaryData;
-      delete stored.binaryType;
+      delete stored.storage;
+      delete stored.opfsName;
+      delete stored.opfsType;
+      delete stored.opfsSize;
+      stored.binaryData=new Uint8Array(light.buffer);
+      stored.binaryType=light.type;
 
       return await new Promise((resolve,reject)=>{
-        const tx=db.transaction([PHOTO_STORE,PHOTO_META_STORE],'readwrite');
-        tx.objectStore(PHOTO_STORE).put(stored);
-        tx.objectStore(PHOTO_META_STORE).put(photoMetaFromRecord(stored));
-        tx.oncomplete=resolve;
-        tx.onabort=()=>reject(tx.error||new Error('写真メタデータ保存が中断されました'));
-        tx.onerror=()=>reject(tx.error||new Error('写真メタデータ保存に失敗しました'));
+        let settled=false;
+        const fail=(error)=>{
+          if(settled) return;
+          settled=true;
+          reject(error || new Error('IndexedDB書き込みエラー'));
+        };
+        try{
+          const tx=db.transaction([PHOTO_STORE,PHOTO_META_STORE],'readwrite');
+          const req1=tx.objectStore(PHOTO_STORE).put(stored);
+          const req2=tx.objectStore(PHOTO_META_STORE).put(photoMetaFromRecord(stored));
+
+          req1.onerror=()=>fail(req1.error || tx.error);
+          req2.onerror=()=>fail(req2.error || tx.error);
+          tx.onabort=()=>fail(tx.error || new Error('IndexedDBトランザクションが中断されました'));
+          tx.onerror=()=>fail(tx.error || new Error('IndexedDBトランザクションエラー'));
+          tx.oncomplete=()=>{
+            if(settled) return;
+            settled=true;
+            resolve(light.size);
+          };
+        }catch(error){
+          fail(error);
+        }
       });
     }
 
@@ -3687,7 +3742,6 @@ function renderItinerary(day) {
           Object.entries(manifest.localStorage||{}).forEach(([k,v])=>localStorage.setItem(k,v));
           localStorage.setItem(RESTORE_STATE_KEY,checkpoint);
 
-          await opfsClearPhotos();
           const db=await photoDbOpen();
           await new Promise((resolve,reject)=>{
             const tx=db.transaction([PHOTO_STORE,PHOTO_META_STORE],'readwrite');
@@ -3730,12 +3784,13 @@ function renderItinerary(day) {
           delete meta.binaryLength;
           delete meta.binaryType;
 
-          await restorePutBinaryWithDb(
+          const lightSize=await restorePutBinaryWithDb(
             restoreDb,
             meta,
             photoBuffer,
             mimeType
           );
+          state.lightBytes=(state.lightBytes||0)+Number(lightSize||0);
 
           // Record checkpoint only after the transaction completes.
           state.done=i+1;
@@ -3775,9 +3830,11 @@ function renderItinerary(day) {
 
         text.textContent=`復元完了：写真 ${restoredCount}/${total}枚・旅程データ復元済み`;
 
+        const lightMb=((state.lightBytes||0)/1024/1024).toFixed(1);
         alert(
           `復元成功\n`+
           `写真：${restoredCount}/${total}枚 復元\n`+
+          `Safari用写真：約 ${lightMb} MB\n`+
           `旅程・設定データ：復元\n`+
           `完了`
         );
@@ -4797,30 +4854,42 @@ document.addEventListener('click', event => {
       const record=await rawPhotoDbGet(id);
       if(!record) return null;
 
-      if(record.storage==='opfs' && record.opfsName){
-        const file=await opfsReadPhoto(record);
-        if(file) record.blob=file;
+      const displayBlob=blobFromStoredPhotoRecord(record);
+      if(displayBlob){
+        record.blob=displayBlob;
         return record;
       }
 
-      const displayBlob=blobFromStoredPhotoRecord(record);
-      if(displayBlob) record.blob=displayBlob;
+      if(record.storage==='opfs' && record.opfsName){
+        const file=await opfsReadPhoto(record);
+        if(file) record.blob=file;
+      }
       return record;
     }
 
     async function photoDbPut(record){
       const stored={...record};
 
-      // New/updated photos are stored as files in OPFS; IndexedDB keeps metadata only.
       if(stored.blob instanceof Blob && stored.blob.size>0){
-        const opfsInfo=await opfsWritePhoto(stored.id,stored.blob);
-        Object.assign(stored,opfsInfo);
+        const optimized=await optimizePhotoBlob(stored.blob);
+        stored.binaryData=new Uint8Array(await optimized.arrayBuffer());
+        stored.binaryType=optimized.type||'image/jpeg';
         delete stored.blob;
-        delete stored.binaryData;
-        delete stored.binaryType;
+        delete stored.storage;
+        delete stored.opfsName;
+        delete stored.opfsType;
+        delete stored.opfsSize;
       }
 
-      return await putPhotoMetadataOnly(stored);
+      const db=await photoDbOpen();
+      return await new Promise((resolve,reject)=>{
+        const tx=db.transaction([PHOTO_STORE,PHOTO_META_STORE],'readwrite');
+        tx.objectStore(PHOTO_STORE).put(stored);
+        tx.objectStore(PHOTO_META_STORE).put(photoMetaFromRecord(stored));
+        tx.oncomplete=resolve;
+        tx.onabort=()=>reject(tx.error||new Error('写真保存が中断されました'));
+        tx.onerror=()=>reject(tx.error||new Error('写真保存に失敗しました'));
+      });
     }
 
     async function photoDbUpdateExif(id,exif){
@@ -4932,7 +5001,7 @@ document.addEventListener('click', event => {
       if(!(blob instanceof Blob)) return blob;
       const bitmap=await createImageBitmap(blob);
       try{
-        const maxSide=2048;
+        const maxSide=1600;
         const scale=Math.min(1,maxSide/Math.max(bitmap.width,bitmap.height));
         const w=Math.max(1,Math.round(bitmap.width*scale));
         const h=Math.max(1,Math.round(bitmap.height*scale));
@@ -4941,7 +5010,7 @@ document.addEventListener('click', event => {
         const ctx=canvas.getContext('2d',{alpha:false});
         ctx.drawImage(bitmap,0,0,w,h);
         const optimized=await new Promise((resolve,reject)=>{
-          canvas.toBlob(b=>b?resolve(b):reject(new Error('画像の軽量化に失敗しました')),'image/jpeg',0.85);
+          canvas.toBlob(b=>b?resolve(b):reject(new Error('画像の軽量化に失敗しました')),'image/jpeg',0.78);
         });
         return optimized.size < blob.size ? optimized : blob;
       }finally{
@@ -5507,20 +5576,6 @@ document.addEventListener('click', event => {
         await releaseTravelWakeLock();
       }
     }
-
-    document.getElementById('photoStorageCleanupBtn')?.addEventListener('click',migratePhotosToOpfs);
-
-    async function refreshPhotoStorageCleanupButton(){
-      const btn=document.getElementById('photoStorageCleanupBtn');
-      if(!btn) return;
-      try{
-        const metas=await photoDbAll();
-        if(metas.length && metas.every(p=>p.storage==='opfs' && p.opfsName)){
-          btn.style.display='none';
-        }
-      }catch(_){}
-    }
-    setTimeout(refreshPhotoStorageCleanupButton,100);
 
     async function storedRecordLooksLikeImage(record){
       if(!record) return false;
