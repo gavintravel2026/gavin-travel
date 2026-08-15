@@ -1632,7 +1632,7 @@
             <h2 id="myPageTitle">マイページ</h2>
             <p>travel log</p>
             <div class="mypage-update-info">
-              <div>アプリ更新：<span id="appUpdatedAt">2026/08/15 15:30</span></div>
+              <div>アプリ更新：<span id="appUpdatedAt">2026/08/15 15:36</span></div>
               <div>データ最終更新：<span id="dataUpdatedAt">—</span></div>
             </div>
           </div>
@@ -3714,7 +3714,7 @@ function renderItinerary(day) {
     }
 
     async function makeIndependentPhotoBlob(file,start,end,type){
-      // Reading one photo at a time detaches it from the 374 MB parent File.
+      // Reading one photo at a time detaches it from the selected backup File.
       // Only a single photo-sized ArrayBuffer exists transiently.
       const buffer=await file.slice(start,end).arrayBuffer();
       return new Blob([buffer],{type:type||'image/jpeg'});
@@ -3758,6 +3758,8 @@ function renderItinerary(day) {
       });
     }
 
+    const AUTHORITATIVE_PHOTO_COUNT=366;
+
     async function importCompleteBackup(file){
       await acquireTravelWakeLock();
       try{
@@ -3797,10 +3799,17 @@ function renderItinerary(day) {
         const photos=manifest.photos||[];
         const total=photos.length;
         if(!total) throw new Error('バックアップに写真がありません');
+        if(total!==AUTHORITATIVE_PHOTO_COUNT){
+          throw new Error(
+            `この旅行の正しい写真枚数は ${AUTHORITATIVE_PHOTO_COUNT}枚です。\n`+
+            `選択したバックアップは ${total}枚なので復元を中止しました。\n`+
+            `72.9MBの366枚バックアップを選んでください。`
+          );
+        }
 
         if(!confirm(
           `一括復元を開始します。\n\n`+
-          `バックアップ写真：${total}枚\n`+
+          `バックアップ写真：${total}枚（正本）\n`+
           `Safari用に1024px・JPEG 70%へ軽量化したあと、\n`+
           `すべての写真を1回のDB書き込みで保存します。\n\n`+
           `復元中はこの画面を閉じないでください。\n\n`+
@@ -3879,7 +3888,7 @@ function renderItinerary(day) {
         text.textContent=`復元完了：写真 ${restored.length}/${total}枚・Safari API 約 ${afterMb} MB`;
         alert(
           `復元成功\n`+
-          `写真：${restored.length}/${total}枚\n`+
+          `写真：${restored.length}/${total}枚（366枚確認済み）\n`+
           `Safari用写真：約 ${lightMb} MB\n`+
           `Safari API 推定使用量：約 ${afterMb} MB\n`+
           `旅程・設定データ：復元\n`+
