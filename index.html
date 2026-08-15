@@ -1818,6 +1818,7 @@
         <button type="button" class="manager-btn secondary" id="completeBackupVerify">バックアップを検証</button>
         <button type="button" class="manager-btn secondary" id="completeBackupImport">バックアップ復元</button>
         <button type="button" class="manager-btn secondary" id="storageDiagnosticBtn">容量を診断</button>
+        <button type="button" class="manager-btn secondary" id="storageCompactBtn">容量を再構築</button>
         <input id="completeBackupVerifyFile" type="file" hidden>
         <input id="completeBackupFile" type="file" hidden>
       </div>
@@ -4006,6 +4007,111 @@ function renderItinerary(day) {
     }
     document.getElementById('storageDiagnosticBtn')?.addEventListener('click',runStorageDiagnostic);
 
+
+    function deletePhotoDbNamed(name){
+      return new Promise((resolve,reject)=>{
+        const req=indexedDB.deleteDatabase(name);
+        req.onsuccess=()=>resolve();
+        req.onerror=()=>reject(req.error||new Error('古い写真DBを削除できません'));
+        req.onblocked=()=>reject(new Error('写真DBが使用中です。Safariでこのページ以外のtravel logタブを閉じて、もう一度実行してください。'));
+      });
+    }
+
+    async function readAllPhotoRecordsFromDb(name){
+      const db=await openPhotoDbNamed(name);
+      return await new Promise((resolve,reject)=>{
+        const tx=db.transaction(PHOTO_STORE,'readonly');
+        const req=tx.objectStore(PHOTO_STORE).getAll();
+        req.onsuccess=()=>{const rows=req.result||[];try{db.close();}catch(_){}resolve(rows);};
+        req.onerror=()=>{const e=req.error||new Error('写真DBを読み取れません');try{db.close();}catch(_){}reject(e);};
+      });
+    }
+
+    function photoRecordBytes(record){
+      let n=0;
+      if(record?.binaryData instanceof ArrayBuffer) n+=record.binaryData.byteLength;
+      else if(ArrayBuffer.isView(record?.binaryData)) n+=record.binaryData.byteLength;
+      if(record?.blob instanceof Blob) n+=record.blob.size;
+      if(record?.storage==='opfs') n+=Number(record.opfsSize||0);
+      return n;
+    }
+
+    async function writeAllPhotoRecordsToDb(name,rows){
+      const db=await openPhotoDbNamed(name);
+      return await new Promise((resolve,reject)=>{
+        let settled=false;
+        const tx=db.transaction([PHOTO_STORE,PHOTO_META_STORE],'readwrite');
+        const photos=tx.objectStore(PHOTO_STORE), meta=tx.objectStore(PHOTO_META_STORE);
+        try{
+          for(const row of rows){ photos.put(row); meta.put(photoMetaFromRecord(row)); }
+        }catch(error){ try{tx.abort();}catch(_){} try{db.close();}catch(_){} reject(error); return; }
+        tx.oncomplete=()=>{if(settled)return;settled=true;try{db.close();}catch(_){}resolve();};
+        tx.onerror=()=>{if(settled)return;settled=true;const e=tx.error||new Error('新しい写真DBへの書き込みに失敗しました');try{db.close();}catch(_){}reject(e);};
+        tx.onabort=()=>{if(settled)return;settled=true;const e=tx.error||new Error('新しい写真DBへの書き込みが中断されました');try{db.close();}catch(_){}reject(e);};
+      });
+    }
+
+    async function compactPhotoDatabase(){
+      const btn=document.getElementById('storageCompactBtn');
+      const box=document.getElementById('storageDiagnosticBox');
+      if(localStorage.getItem(PHOTO_DB_ACTIVE_KEY)==='1'){
+        alert('写真DBはすでに再構築済みです。');
+        return;
+      }
+      if(!confirm('写真DBを新しく作り直して、Safari内部の膨らんだ領域を切り離します。\n\n保存済みバックアップは消しません。現在の写真だけをそのまま移します。\n実行しますか？')) return;
+      if(btn) btn.disabled=true;
+      try{
+        const before=await navigator.storage.estimate();
+        if(box){box.style.display='block';box.textContent='容量再構築：現在の写真を読み取っています…';}
+        const rows=await readAllPhotoRecordsFromDb(PHOTO_DB_LEGACY_NAME);
+        const sourceCount=rows.length;
+        const sourceBytes=rows.reduce((sum,row)=>sum+photoRecordBytes(row),0);
+        if(!sourceCount) throw new Error('移行する写真がありません');
+
+        // Remove any unfinished prior temp database first.
+        try{await deletePhotoDbNamed(PHOTO_DB_COMPACT_NAME);}catch(error){
+          if(!String(error?.message||'').includes('使用中')) throw error;
+          throw error;
+        }
+
+        if(box) box.textContent=`容量再構築：${sourceCount}枚（${formatDiagnosticMb(sourceBytes)}）を新しいDBへ1回のトランザクションで保存中…`;
+        await writeAllPhotoRecordsToDb(PHOTO_DB_COMPACT_NAME,rows);
+
+        if(box) box.textContent='容量再構築：新しいDBを検証しています…';
+        const verify=await readAllPhotoRecordsFromDb(PHOTO_DB_COMPACT_NAME);
+        const verifyBytes=verify.reduce((sum,row)=>sum+photoRecordBytes(row),0);
+        if(verify.length!==sourceCount || verifyBytes!==sourceBytes){
+          throw new Error(`検証不一致（${verify.length}/${sourceCount}枚、${formatDiagnosticMb(verifyBytes)}/${formatDiagnosticMb(sourceBytes)}）`);
+        }
+
+        // Only after exact verification, delete the bloated legacy DB.
+        if(box) box.textContent='容量再構築：検証OK。古いDBを削除しています…';
+        await deletePhotoDbNamed(PHOTO_DB_LEGACY_NAME);
+        localStorage.setItem(PHOTO_DB_ACTIVE_KEY,'1');
+
+        await new Promise(r=>setTimeout(r,1500));
+        const after=await navigator.storage.estimate();
+        const result=[
+          '容量再構築 完了',
+          `写真：${sourceCount}枚`,
+          `写真実データ：${formatDiagnosticMb(sourceBytes)}`,
+          `Safari API 使用量：${formatDiagnosticMb(before.usage||0)} → ${formatDiagnosticMb(after.usage||0)}`,
+          '',
+          'ページを再読み込みします。'
+        ].join('\n');
+        if(box) box.textContent=result;
+        alert(result);
+        location.reload();
+      }catch(error){
+        const msg=`容量再構築を中止しました。\n元の写真DBは削除していません。\n\n${error?.message||String(error)}`;
+        if(box){box.style.display='block';box.textContent=msg;}
+        alert(msg);
+      }finally{
+        if(btn) btn.disabled=false;
+      }
+    }
+    document.getElementById('storageCompactBtn')?.addEventListener('click',compactPhotoDatabase);
+
     document.getElementById('completeBackupImport').addEventListener('click',()=>document.getElementById('completeBackupFile').click());
     document.getElementById('completeBackupFile').addEventListener('change',async event=>{
       const file=event.target.files?.[0]; if(file) await importCompleteBackup(file); event.target.value='';
@@ -4754,8 +4860,14 @@ document.addEventListener('click', event => {
     });
 
 // Personal photo album. Images are stored in IndexedDB so the HTML itself does not grow with every photo.
-    const PHOTO_DB_NAME = 'GavinTravelPhotos';
+    const PHOTO_DB_LEGACY_NAME = 'GavinTravelPhotos';
+    const PHOTO_DB_COMPACT_NAME = 'GavinTravelPhotosCompactV23';
+    const PHOTO_DB_ACTIVE_KEY = 'travelLogPhotoDbV23Active';
     const PHOTO_DB_VERSION = 3;
+
+    function currentPhotoDbName(){
+      return localStorage.getItem(PHOTO_DB_ACTIVE_KEY)==='1' ? PHOTO_DB_COMPACT_NAME : PHOTO_DB_LEGACY_NAME;
+    }
     const PHOTO_STORE = 'photos';
     const PHOTO_META_STORE = 'photoMeta';
     window.personalPhotos = window.personalPhotos || [];
@@ -4783,9 +4895,9 @@ document.addEventListener('click', event => {
       };
     }
 
-    function photoDbOpen(){
+    function openPhotoDbNamed(dbName){
       return new Promise((resolve,reject)=>{
-        const req=indexedDB.open(PHOTO_DB_NAME,PHOTO_DB_VERSION);
+        const req=indexedDB.open(dbName,PHOTO_DB_VERSION);
         req.onupgradeneeded=event=>{
           const db=req.result;
           const tx=req.transaction;
@@ -4816,13 +4928,17 @@ document.addEventListener('click', event => {
       });
     }
 
+    function photoDbOpen(){
+      return openPhotoDbNamed(currentPhotoDbName());
+    }
+
     async function photoDbAll(){
       const db=await photoDbOpen();
       return await new Promise((resolve,reject)=>{
         const tx=db.transaction(PHOTO_META_STORE,'readonly');
         const req=tx.objectStore(PHOTO_META_STORE).getAll();
-        req.onsuccess=()=>resolve(req.result||[]);
-        req.onerror=()=>reject(req.error);
+        req.onsuccess=()=>{ const rows=req.result||[]; try{db.close();}catch(_){} resolve(rows); };
+        req.onerror=()=>{ const e=req.error; try{db.close();}catch(_){} reject(e); };
       });
     }
 
@@ -4961,24 +5077,22 @@ document.addEventListener('click', event => {
       return await new Promise((resolve,reject)=>{
         const tx=db.transaction(PHOTO_STORE,'readonly');
         const req=tx.objectStore(PHOTO_STORE).get(id);
-        req.onsuccess=()=>resolve(req.result||null);
-        req.onerror=()=>reject(req.error||new Error('写真データの読み込みに失敗しました'));
+        req.onsuccess=()=>{ const row=req.result||null; try{db.close();}catch(_){} resolve(row); };
+        req.onerror=()=>{ const e=req.error||new Error('写真データの読み込みに失敗しました'); try{db.close();}catch(_){} reject(e); };
       });
     }
 
     async function putPhotoMetadataOnly(record){
       const db=await photoDbOpen();
       const stored={...record};
-      delete stored.blob;
-      delete stored.binaryData;
-      delete stored.binaryType;
+      delete stored.blob; delete stored.binaryData; delete stored.binaryType;
       return await new Promise((resolve,reject)=>{
         const tx=db.transaction([PHOTO_STORE,PHOTO_META_STORE],'readwrite');
         tx.objectStore(PHOTO_STORE).put(stored);
         tx.objectStore(PHOTO_META_STORE).put(photoMetaFromRecord(stored));
-        tx.oncomplete=resolve;
-        tx.onabort=()=>reject(tx.error||new Error('写真メタデータ保存が中断されました'));
-        tx.onerror=()=>reject(tx.error||new Error('写真メタデータ保存に失敗しました'));
+        tx.oncomplete=()=>{try{db.close();}catch(_){} resolve();};
+        tx.onabort=()=>{const e=tx.error||new Error('写真メタデータ保存が中断されました');try{db.close();}catch(_){}reject(e);};
+        tx.onerror=()=>{const e=tx.error||new Error('写真メタデータ保存に失敗しました');try{db.close();}catch(_){}reject(e);};
       });
     }
 
@@ -5001,26 +5115,20 @@ document.addEventListener('click', event => {
 
     async function photoDbPut(record){
       const stored={...record};
-
       if(stored.blob instanceof Blob && stored.blob.size>0){
         const optimized=await optimizePhotoBlob(stored.blob);
         stored.binaryData=new Uint8Array(await optimized.arrayBuffer());
         stored.binaryType=optimized.type||'image/jpeg';
-        delete stored.blob;
-        delete stored.storage;
-        delete stored.opfsName;
-        delete stored.opfsType;
-        delete stored.opfsSize;
+        delete stored.blob; delete stored.storage; delete stored.opfsName; delete stored.opfsType; delete stored.opfsSize;
       }
-
       const db=await photoDbOpen();
       return await new Promise((resolve,reject)=>{
         const tx=db.transaction([PHOTO_STORE,PHOTO_META_STORE],'readwrite');
         tx.objectStore(PHOTO_STORE).put(stored);
         tx.objectStore(PHOTO_META_STORE).put(photoMetaFromRecord(stored));
-        tx.oncomplete=resolve;
-        tx.onabort=()=>reject(tx.error||new Error('写真保存が中断されました'));
-        tx.onerror=()=>reject(tx.error||new Error('写真保存に失敗しました'));
+        tx.oncomplete=()=>{try{db.close();}catch(_){} resolve();};
+        tx.onabort=()=>{const e=tx.error||new Error('写真保存が中断されました');try{db.close();}catch(_){}reject(e);};
+        tx.onerror=()=>{const e=tx.error||new Error('写真保存に失敗しました');try{db.close();}catch(_){}reject(e);};
       });
     }
 
@@ -5028,36 +5136,30 @@ document.addEventListener('click', event => {
       const db=await photoDbOpen();
       return await new Promise((resolve,reject)=>{
         const tx=db.transaction([PHOTO_STORE,PHOTO_META_STORE],'readwrite');
-        const photos=tx.objectStore(PHOTO_STORE);
-        const meta=tx.objectStore(PHOTO_META_STORE);
+        const photos=tx.objectStore(PHOTO_STORE), meta=tx.objectStore(PHOTO_META_STORE);
         const req=photos.get(id);
         req.onsuccess=()=>{
-          const record=req.result;
-          if(!record) return;
-          record.captureTime=exif.captureTime || '';
-          record.captureTimeSource=exif.captureTimeSource || '';
-          record.gpsLat=Number.isFinite(exif.gpsLat) ? exif.gpsLat : null;
-          record.gpsLon=Number.isFinite(exif.gpsLon) ? exif.gpsLon : null;
-          record.exifScanned=true;
-          photos.put(record);
-          meta.put(photoMetaFromRecord(record));
+          const record=req.result; if(!record) return;
+          record.captureTime=exif.captureTime||''; record.captureTimeSource=exif.captureTimeSource||'';
+          record.gpsLat=Number.isFinite(exif.gpsLat)?exif.gpsLat:null; record.gpsLon=Number.isFinite(exif.gpsLon)?exif.gpsLon:null;
+          record.exifScanned=true; photos.put(record); meta.put(photoMetaFromRecord(record));
         };
-        tx.oncomplete=resolve;
-        tx.onerror=()=>reject(tx.error);
+        tx.oncomplete=()=>{try{db.close();}catch(_){} resolve();};
+        tx.onerror=()=>{const e=tx.error;try{db.close();}catch(_){}reject(e);};
+        tx.onabort=()=>{const e=tx.error||new Error('写真情報更新が中断されました');try{db.close();}catch(_){}reject(e);};
       });
     }
 
     async function photoDbDelete(id){
       const existing=await rawPhotoDbGet(id);
       if(existing?.storage==='opfs') await opfsDeletePhoto(existing);
-
       const db=await photoDbOpen();
       return await new Promise((resolve,reject)=>{
         const tx=db.transaction([PHOTO_STORE,PHOTO_META_STORE],'readwrite');
-        tx.objectStore(PHOTO_STORE).delete(id);
-        tx.objectStore(PHOTO_META_STORE).delete(id);
-        tx.oncomplete=resolve;
-        tx.onerror=()=>reject(tx.error);
+        tx.objectStore(PHOTO_STORE).delete(id); tx.objectStore(PHOTO_META_STORE).delete(id);
+        tx.oncomplete=()=>{try{db.close();}catch(_){} resolve();};
+        tx.onerror=()=>{const e=tx.error;try{db.close();}catch(_){}reject(e);};
+        tx.onabort=()=>{const e=tx.error||new Error('写真削除が中断されました');try{db.close();}catch(_){}reject(e);};
       });
     }
     function itineraryEventOptions(){
