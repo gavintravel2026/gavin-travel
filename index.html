@@ -1249,12 +1249,19 @@
     }
     .photo-viewer-stage{
       min-height:0;position:relative;display:flex;align-items:center;justify-content:center;
-      overflow:hidden;touch-action:pan-y
+      overflow:hidden;touch-action:none
     }
     .photo-viewer-stage img{
       display:block;max-width:100%;max-height:100%;width:auto;height:auto;
-      object-fit:contain
+      object-fit:contain;
+      transform-origin:center center;
+      will-change:transform;
+      user-select:none;
+      -webkit-user-select:none;
+      -webkit-user-drag:none;
+      touch-action:none
     }
+    .photo-viewer-stage img.zoom-animate{transition:transform .18s ease}
     .photo-viewer-nav{
       position:absolute;top:50%;transform:translateY(-50%);
       width:42px;height:52px;border:0;border-radius:13px;
@@ -1625,7 +1632,7 @@
             <h2 id="myPageTitle">マイページ</h2>
             <p>travel log</p>
             <div class="mypage-update-info">
-              <div>アプリ更新：<span id="appUpdatedAt">2026/08/15 13:52</span></div>
+              <div>アプリ更新：<span id="appUpdatedAt">2026/08/15 13:58</span></div>
               <div>データ最終更新：<span id="dataUpdatedAt">—</span></div>
             </div>
           </div>
@@ -3554,7 +3561,7 @@ function renderItinerary(day) {
       let bitmap=null;
       try{
         bitmap=await createImageBitmap(sourceBlob);
-        const maxSide=1600;
+        const maxSide=1024;
         const scale=Math.min(1,maxSide/Math.max(bitmap.width,bitmap.height));
         const width=Math.max(1,Math.round(bitmap.width*scale));
         const height=Math.max(1,Math.round(bitmap.height*scale));
@@ -3570,7 +3577,7 @@ function renderItinerary(day) {
           canvas.toBlob(
             blob=>blob?resolve(blob):reject(new Error('画像の軽量化に失敗しました')),
             'image/jpeg',
-            0.78
+            0.70
           );
         });
 
@@ -4264,7 +4271,7 @@ function renderItinerary(day) {
     document.getElementById('exportDataBtn')?.addEventListener('click', () => {
       const payload = {
         app:'travel log',
-        version:'2.0.7',
+        version:'2.0.8',
         exportedAt:new Date().toISOString(),
         selectedDay:currentSelectedDay,
         favorites:[...favoriteFoods],
@@ -5001,7 +5008,7 @@ document.addEventListener('click', event => {
       if(!(blob instanceof Blob)) return blob;
       const bitmap=await createImageBitmap(blob);
       try{
-        const maxSide=1600;
+        const maxSide=1024;
         const scale=Math.min(1,maxSide/Math.max(bitmap.width,bitmap.height));
         const w=Math.max(1,Math.round(bitmap.width*scale));
         const h=Math.max(1,Math.round(bitmap.height*scale));
@@ -5010,7 +5017,7 @@ document.addEventListener('click', event => {
         const ctx=canvas.getContext('2d',{alpha:false});
         ctx.drawImage(bitmap,0,0,w,h);
         const optimized=await new Promise((resolve,reject)=>{
-          canvas.toBlob(b=>b?resolve(b):reject(new Error('画像の軽量化に失敗しました')),'image/jpeg',0.78);
+          canvas.toBlob(b=>b?resolve(b):reject(new Error('画像の軽量化に失敗しました')),'image/jpeg',0.70);
         });
         return optimized.size < blob.size ? optimized : blob;
       }finally{
@@ -5308,6 +5315,7 @@ document.addEventListener('click', event => {
       const photo=photoViewerRows[index];
       activePhotoId=photo.id;
 
+      resetPhotoZoom(false);
       const img=document.getElementById('photoViewerImage');
       if(img){
         img.removeAttribute('src');
@@ -5332,6 +5340,7 @@ document.addEventListener('click', event => {
     }
 
     function closePhotoViewer(){
+      resetPhotoZoom(false);
       const viewer=document.getElementById('photoViewer');
       viewer?.classList.remove('open');
       viewer?.setAttribute('aria-hidden','true');
@@ -6003,25 +6012,165 @@ document.addEventListener('click', event => {
       if(e.target.id==='photoViewer') closePhotoViewer();
     });
 
-    let photoSwipeStartX=0;
-    let photoSwipeStartY=0;
+    let photoZoomScale=1;
+    let photoZoomX=0;
+    let photoZoomY=0;
+    let photoGestureMode='';
+    let photoGestureStartX=0;
+    let photoGestureStartY=0;
+    let photoGestureBaseX=0;
+    let photoGestureBaseY=0;
+    let photoPinchStartDistance=0;
+    let photoPinchStartScale=1;
+    let photoLastTapAt=0;
+    let photoTouchMoved=false;
+
     const photoViewerStage=document.getElementById('photoViewerStage');
+
+    function applyPhotoZoom(animate=false){
+      const img=document.getElementById('photoViewerImage');
+      if(!img) return;
+      img.classList.toggle('zoom-animate',animate);
+      img.style.transform=`translate3d(${photoZoomX}px,${photoZoomY}px,0) scale(${photoZoomScale})`;
+      if(animate){
+        setTimeout(()=>img.classList.remove('zoom-animate'),220);
+      }
+    }
+
+    function resetPhotoZoom(animate=true){
+      photoZoomScale=1;
+      photoZoomX=0;
+      photoZoomY=0;
+      photoGestureMode='';
+      applyPhotoZoom(animate);
+    }
+
+    function photoTouchDistance(a,b){
+      return Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);
+    }
+
+    function clampPhotoPan(){
+      if(photoZoomScale<=1){
+        photoZoomX=0;
+        photoZoomY=0;
+        return;
+      }
+      const stage=photoViewerStage?.getBoundingClientRect();
+      const img=document.getElementById('photoViewerImage')?.getBoundingClientRect();
+      if(!stage || !img) return;
+
+      // Keep enough of the enlarged image on screen while allowing useful panning.
+      const maxX=Math.max(0,(stage.width*(photoZoomScale-1))/2);
+      const maxY=Math.max(0,(stage.height*(photoZoomScale-1))/2);
+      photoZoomX=Math.max(-maxX,Math.min(maxX,photoZoomX));
+      photoZoomY=Math.max(-maxY,Math.min(maxY,photoZoomY));
+    }
+
     photoViewerStage?.addEventListener('touchstart',e=>{
-      const t=e.changedTouches?.[0];
+      photoTouchMoved=false;
+
+      if(e.touches.length>=2){
+        photoGestureMode='pinch';
+        photoPinchStartDistance=photoTouchDistance(e.touches[0],e.touches[1]);
+        photoPinchStartScale=photoZoomScale;
+        e.preventDefault();
+        return;
+      }
+
+      const t=e.touches?.[0];
       if(!t) return;
-      photoSwipeStartX=t.clientX;
-      photoSwipeStartY=t.clientY;
-    },{passive:true});
+      photoGestureStartX=t.clientX;
+      photoGestureStartY=t.clientY;
+      photoGestureBaseX=photoZoomX;
+      photoGestureBaseY=photoZoomY;
+      photoGestureMode=photoZoomScale>1 ? 'pan' : 'swipe';
+    },{passive:false});
+
+    photoViewerStage?.addEventListener('touchmove',e=>{
+      if(photoGestureMode==='pinch' && e.touches.length>=2){
+        const distance=photoTouchDistance(e.touches[0],e.touches[1]);
+        if(photoPinchStartDistance>0){
+          photoZoomScale=Math.max(1,Math.min(5,photoPinchStartScale*(distance/photoPinchStartDistance)));
+          if(photoZoomScale<=1.02){
+            photoZoomScale=1;
+            photoZoomX=0;
+            photoZoomY=0;
+          }
+          clampPhotoPan();
+          applyPhotoZoom(false);
+        }
+        photoTouchMoved=true;
+        e.preventDefault();
+        return;
+      }
+
+      if(photoGestureMode==='pan' && e.touches.length===1){
+        const t=e.touches[0];
+        const dx=t.clientX-photoGestureStartX;
+        const dy=t.clientY-photoGestureStartY;
+        if(Math.abs(dx)>2 || Math.abs(dy)>2) photoTouchMoved=true;
+        photoZoomX=photoGestureBaseX+dx;
+        photoZoomY=photoGestureBaseY+dy;
+        clampPhotoPan();
+        applyPhotoZoom(false);
+        e.preventDefault();
+      }
+    },{passive:false});
+
     photoViewerStage?.addEventListener('touchend',e=>{
+      // A remaining finger after pinch: wait for the gesture to finish.
+      if(e.touches?.length) return;
+
+      if(photoGestureMode==='pinch'){
+        if(photoZoomScale<1.05) resetPhotoZoom(true);
+        else{
+          clampPhotoPan();
+          applyPhotoZoom(true);
+        }
+        photoGestureMode='';
+        return;
+      }
+
       const t=e.changedTouches?.[0];
       if(!t) return;
-      const dx=t.clientX-photoSwipeStartX;
-      const dy=t.clientY-photoSwipeStartY;
-      if(Math.abs(dx)<55 || Math.abs(dx)<Math.abs(dy)) return;
-      const idx=photoViewerRows.findIndex(p=>p.id===activePhotoId);
-      if(idx<0) return;
-      renderPhotoViewer(dx<0 ? idx+1 : idx-1);
-    },{passive:true});
+
+      const dx=t.clientX-photoGestureStartX;
+      const dy=t.clientY-photoGestureStartY;
+
+      if(photoGestureMode==='pan'){
+        clampPhotoPan();
+        applyPhotoZoom(false);
+        photoGestureMode='';
+        return;
+      }
+
+      // At 1x, horizontal swipe keeps the existing previous/next navigation.
+      if(photoGestureMode==='swipe' && (Math.abs(dx)>=55 && Math.abs(dx)>Math.abs(dy))){
+        const idx=photoViewerRows.findIndex(p=>p.id===activePhotoId);
+        if(idx>=0) renderPhotoViewer(dx<0 ? idx+1 : idx-1);
+        photoGestureMode='';
+        return;
+      }
+
+      // Double tap toggles between 1x and 2.5x.
+      const now=Date.now();
+      const isTap=Math.abs(dx)<12 && Math.abs(dy)<12 && !photoTouchMoved;
+      if(isTap && now-photoLastTapAt<320){
+        if(photoZoomScale>1){
+          resetPhotoZoom(true);
+        }else{
+          photoZoomScale=2.5;
+          photoZoomX=0;
+          photoZoomY=0;
+          applyPhotoZoom(true);
+        }
+        photoLastTapAt=0;
+      }else if(isTap){
+        photoLastTapAt=now;
+      }
+
+      photoGestureMode='';
+    },{passive:false});
 
     function openPhotoDeleteConfirm(){
       const c=document.getElementById('photoDeleteConfirm');
