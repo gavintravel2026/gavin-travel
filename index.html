@@ -1625,7 +1625,7 @@
             <h2 id="myPageTitle">マイページ</h2>
             <p>travel log</p>
             <div class="mypage-update-info">
-              <div>アプリ更新：<span id="appUpdatedAt">2026/08/15 11:39</span></div>
+              <div>アプリ更新：<span id="appUpdatedAt">2026/08/15 12:46</span></div>
               <div>データ最終更新：<span id="dataUpdatedAt">—</span></div>
             </div>
           </div>
@@ -3547,73 +3547,248 @@ function renderItinerary(day) {
     function saveRestoreState(state){localStorage.setItem(RESTORE_STATE_KEY,JSON.stringify(state));showRestoreState(state);}
     function loadRestoreState(){try{return JSON.parse(localStorage.getItem(RESTORE_STATE_KEY)||'null')}catch(_){return null}}
 
+
+    async function restorePutWithDb(db,record){
+      return await new Promise((resolve,reject)=>{
+        let settled=false;
+        const fail=(error)=>{
+          if(settled) return;
+          settled=true;
+          const e=error || new Error('IndexedDB書き込みエラー');
+          reject(e);
+        };
+        try{
+          const tx=db.transaction([PHOTO_STORE,PHOTO_META_STORE],'readwrite');
+          const photos=tx.objectStore(PHOTO_STORE);
+          const meta=tx.objectStore(PHOTO_META_STORE);
+          const req1=photos.put(record);
+          const req2=meta.put(photoMetaFromRecord(record));
+
+          req1.onerror=()=>fail(req1.error || tx.error);
+          req2.onerror=()=>fail(req2.error || tx.error);
+          tx.onabort=()=>fail(tx.error || new Error('IndexedDBトランザクションが中断されました'));
+          tx.onerror=()=>fail(tx.error || new Error('IndexedDBトランザクションエラー'));
+          tx.oncomplete=()=>{
+            if(settled) return;
+            settled=true;
+            resolve();
+          };
+        }catch(error){
+          fail(error);
+        }
+      });
+    }
+
+    function readableRestoreError(error){
+      if(!error) return '原因不明のIndexedDBエラー';
+      const name=error.name && error.name!=='Error' ? `${error.name}: ` : '';
+      const message=error.message || String(error);
+      if(!message || message==='null' || message==='undefined') return `${name}原因不明のIndexedDBエラー`;
+      return `${name}${message}`;
+    }
+
+    async function makeIndependentPhotoBlob(file,start,end,type){
+      // Reading one photo at a time detaches it from the 374 MB parent File.
+      // Only a single photo-sized ArrayBuffer exists transiently.
+      const buffer=await file.slice(start,end).arrayBuffer();
+      return new Blob([buffer],{type:type||'image/jpeg'});
+    }
+
     async function importCompleteBackup(file){
       let state=null;
+      let restoreDb=null;
       await acquireTravelWakeLock();
       try{
         const head=new Uint8Array(await file.slice(0,16).arrayBuffer());
-        if(new TextDecoder().decode(head.slice(0,8))!==TL_BACKUP_MAGIC)throw new Error('travel logのバックアップ形式ではありません');
+        if(new TextDecoder().decode(head.slice(0,8))!==TL_BACKUP_MAGIC){
+          throw new Error('travel logのバックアップ形式ではありません');
+        }
+
         const manifestLength=readU64le(new DataView(head.buffer),8);
-        if(!Number.isSafeInteger(manifestLength)||manifestLength<=0||manifestLength>50*1024*1024)throw new Error('管理データが壊れています');
+        if(!Number.isSafeInteger(manifestLength)||manifestLength<=0||manifestLength>50*1024*1024){
+          throw new Error('管理データが壊れています');
+        }
+
         const binaryStart=16+manifestLength;
         const manifest=JSON.parse(await file.slice(16,binaryStart).text());
-        if(manifest?.format!=='travel-log-binary-backup'||manifest?.version!==1)throw new Error('対応していないバックアップ形式です');
+        if(manifest?.format!=='travel-log-binary-backup'||manifest?.version!==1){
+          throw new Error('対応していないバックアップ形式です');
+        }
 
         const backupId=`${file.name}|${file.size}|${manifest.createdAt||''}|${manifest.photoCount||0}`;
         const previous=loadRestoreState();
         const total=manifest.photos?.length||0;
-        const canResume=previous?.backupId===backupId&&previous.done>0&&previous.done<total;
+        const canResume=previous?.backupId===backupId && previous.done>0 && previous.done<total;
 
         if(canResume){
-          if(!confirm(`途中から復元を再開できます。\n\n${previous.done} / ${previous.total} 復元済み\n次は ${previous.done+1} 枚目から再開します。\n\n復元を再開しますか？`))return;
+          if(!confirm(
+            `途中から復元を再開できます。\n\n`+
+            `${previous.done} / ${previous.total} 復元済み\n`+
+            `次は ${previous.done+1} 枚目から再開します。\n\n`+
+            `復元を再開しますか？`
+          )) return;
           state={...previous,error:''};
         }else{
           const currentPhotoCount=(await photoDbAll()).length;
-          if(!confirm(`最終確認\n\n現在の写真：${currentPhotoCount}枚\nバックアップの写真：${total}枚\n\n現在の旅程・設定・写真をバックアップ内容に置き換えます。\n復元中はこの画面を閉じないでください。\n\n復元を開始しますか？`))return;
-          state={backupId,done:0,total,error:'',startedAt:new Date().toISOString()};
+
+          let storageMessage='';
+          try{
+            if(navigator.storage?.estimate){
+              const est=await navigator.storage.estimate();
+              const quota=Number(est.quota||0);
+              const usage=Number(est.usage||0);
+              if(quota>0){
+                const free=Math.max(0,quota-usage);
+                storageMessage=`\n端末保存領域の推定空き：約 ${(free/1024/1024).toFixed(0)} MB`;
+              }
+            }
+          }catch(_){}
+
+          if(!confirm(
+            `最終確認\n\n`+
+            `現在の写真：${currentPhotoCount}枚\n`+
+            `バックアップの写真：${total}枚`+
+            storageMessage+
+            `\n\n現在の旅程・設定・写真をバックアップ内容に置き換えます。\n`+
+            `復元中はこの画面を閉じないでください。\n\n`+
+            `復元を開始しますか？`
+          )) return;
+
+          state={
+            backupId,
+            done:0,
+            total,
+            error:'',
+            startedAt:new Date().toISOString()
+          };
           saveRestoreState(state);
+
           const checkpoint=localStorage.getItem(RESTORE_STATE_KEY);
           localStorage.clear();
           Object.entries(manifest.localStorage||{}).forEach(([k,v])=>localStorage.setItem(k,v));
           localStorage.setItem(RESTORE_STATE_KEY,checkpoint);
+
           const db=await photoDbOpen();
           await new Promise((resolve,reject)=>{
             const tx=db.transaction([PHOTO_STORE,PHOTO_META_STORE],'readwrite');
-            tx.objectStore(PHOTO_STORE).clear();tx.objectStore(PHOTO_META_STORE).clear();
-            tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);
+            tx.objectStore(PHOTO_STORE).clear();
+            tx.objectStore(PHOTO_META_STORE).clear();
+            tx.oncomplete=resolve;
+            tx.onabort=()=>reject(tx.error||new Error('写真DBの初期化が中断されました'));
+            tx.onerror=()=>reject(tx.error||new Error('写真DBの初期化に失敗しました'));
           });
+          try{ db.close(); }catch(_){}
         }
 
-        const box=document.getElementById('backupProgressBox'),text=document.getElementById('backupProgressText'),bar=document.getElementById('backupProgressBar');
-        box.style.display='block';bar.max=Math.max(1,total);bar.value=state.done;showRestoreState(state);
+        const box=document.getElementById('backupProgressBox');
+        const text=document.getElementById('backupProgressText');
+        const bar=document.getElementById('backupProgressBar');
+
+        box.style.display='block';
+        bar.max=Math.max(1,total);
+        bar.value=state.done;
+        showRestoreState(state);
+
+        restoreDb=await photoDbOpen();
 
         for(let i=state.done;i<total;i++){
           const meta={...manifest.photos[i]};
           text.textContent=`復元中 ${i+1} / ${total}`;
-          const blob=file.slice(binaryStart+meta.binaryOffset,binaryStart+meta.binaryOffset+meta.binaryLength,meta.binaryType||'image/jpeg');
-          delete meta.binaryOffset;delete meta.binaryLength;delete meta.binaryType;meta.blob=blob;
-          await photoDbPut(meta);
-          state.done=i+1;state.error='';saveRestoreState(state);bar.value=state.done;
-          await new Promise(r=>setTimeout(r,(i+1)%5===0?150:10));
+
+          const start=binaryStart+Number(meta.binaryOffset);
+          const end=start+Number(meta.binaryLength);
+          if(start<binaryStart || end>file.size || end<start){
+            throw new Error(`写真 ${i+1} のデータ位置が不正です`);
+          }
+
+          // Create a standalone photo Blob. This avoids keeping a slice backed
+          // by the giant 374 MB backup file inside IndexedDB.
+          const independentBlob=await makeIndependentPhotoBlob(
+            file,
+            start,
+            end,
+            meta.binaryType||'image/jpeg'
+          );
+
+          delete meta.binaryOffset;
+          delete meta.binaryLength;
+          delete meta.binaryType;
+          meta.blob=independentBlob;
+
+          await restorePutWithDb(restoreDb,meta);
+
+          // Record checkpoint only after the transaction completes.
+          state.done=i+1;
+          state.error='';
+          saveRestoreState(state);
+          bar.value=state.done;
+
+          // Periodically close/reopen the DB connection so Safari does not
+          // accumulate hundreds of live IndexedDB connections/resources.
+          if((i+1)%20===0 && i+1<total){
+            try{ restoreDb.close(); }catch(_){}
+            restoreDb=null;
+            await new Promise(r=>setTimeout(r,300));
+            restoreDb=await photoDbOpen();
+          }else if((i+1)%5===0){
+            await new Promise(r=>setTimeout(r,120));
+          }else{
+            await new Promise(r=>setTimeout(r,15));
+          }
         }
 
+        try{ restoreDb?.close(); }catch(_){}
+        restoreDb=null;
+
         const restoredCount=(await photoDbAll()).length;
-        if(restoredCount!==total)throw new Error(`写真の復元枚数が一致しません（${restoredCount}/${total}枚）`);
-        if(!Object.keys(manifest.localStorage||{}).length)throw new Error('旅程・設定データの復元を確認できません');
-        state.done=total;state.error='';saveRestoreState(state);
+        if(restoredCount!==total){
+          throw new Error(`写真の復元枚数が一致しません（${restoredCount}/${total}枚）`);
+        }
+        if(!Object.keys(manifest.localStorage||{}).length){
+          throw new Error('旅程・設定データの復元を確認できません');
+        }
+
+        state.done=total;
+        state.error='';
+        state.completedAt=new Date().toISOString();
+        saveRestoreState(state);
+
         text.textContent=`復元完了：写真 ${restoredCount}/${total}枚・旅程データ復元済み`;
-        alert(`復元成功\n写真：${restoredCount}/${total}枚 復元\n旅程・設定データ：復元\n完了`);
-        localStorage.removeItem(RESTORE_STATE_KEY);location.reload();
+
+        alert(
+          `復元成功\n`+
+          `写真：${restoredCount}/${total}枚 復元\n`+
+          `旅程・設定データ：復元\n`+
+          `完了`
+        );
+
+        localStorage.removeItem(RESTORE_STATE_KEY);
+        location.reload();
+
       }catch(error){
-        console.error(error);
-        if(state){state.error=error?.message||String(error);state.failedAt=new Date().toISOString();saveRestoreState(state);}
-        alert(`復元が途中で停止しました。\n${state?.done||0} / ${state?.total||0} 復元済み\n\n${error?.message||String(error)}\n\n同じバックアップをもう一度選ぶと続きから再開できます。`);
+        try{ restoreDb?.close(); }catch(_){}
+        restoreDb=null;
+
+        const message=readableRestoreError(error);
+        console.error('restore failed',error);
+
+        if(state){
+          state.error=message;
+          state.failedAt=new Date().toISOString();
+          saveRestoreState(state);
+        }
+
+        alert(
+          `復元が途中で停止しました。\n`+
+          `${state?.done||0} / ${state?.total||0} 復元済み\n\n`+
+          `${message}\n\n`+
+          `同じバックアップをもう一度選ぶと続きから再開できます。`
+        );
       }finally{
+        try{ restoreDb?.close(); }catch(_){}
         await releaseTravelWakeLock();
       }
     }
-
-    {const st=loadRestoreState();if(st?.total)showRestoreState(st);}
 
     document.getElementById('completeBackupExport').addEventListener('click',exportCompleteBackup);
     document.getElementById('completeBackupVerify').addEventListener('click',()=>document.getElementById('completeBackupVerifyFile').click());
