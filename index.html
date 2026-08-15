@@ -1511,6 +1511,7 @@
         </div>
         <div class="photo-head-actions">
           <button type="button" class="photo-audit-btn" id="photoDiagBtn">復元写真を診断</button>
+          <button type="button" class="photo-audit-btn" id="photoRepairBtn">壊れた写真を修復</button>
           <button type="button" class="photo-add-btn" id="photoAddBtn">＋ 写真を追加</button>
         </div>
         <input type="file" id="photoAddInput" accept="image/*" multiple hidden>
@@ -1626,7 +1627,7 @@
             <h2 id="myPageTitle">マイページ</h2>
             <p>travel log</p>
             <div class="mypage-update-info">
-              <div>アプリ更新：<span id="appUpdatedAt">2026/08/15 13:15</span></div>
+              <div>アプリ更新：<span id="appUpdatedAt">2026/08/15 13:19</span></div>
               <div>データ最終更新：<span id="dataUpdatedAt">—</span></div>
             </div>
           </div>
@@ -5277,6 +5278,185 @@ document.addEventListener('click', event => {
       renderPhotoAlbum();
       requestAnimationFrame(()=>window.scrollTo({top:0,behavior:'instant'}));
     }
+
+
+    async function storedRecordLooksLikeImage(record){
+      if(!record) return false;
+      let bytes=null;
+      if(record.blob instanceof Blob){
+        if(record.blob.size<3) return false;
+        bytes=new Uint8Array(await record.blob.slice(0,16).arrayBuffer());
+      }else if(record.binaryData){
+        const normalized=normalizeStoredPhotoBytes(record.binaryData);
+        if(!normalized || normalized.byteLength<3) return false;
+        bytes=normalized.subarray(0,16);
+      }else{
+        return false;
+      }
+
+      const jpeg=bytes.length>=3 && bytes[0]===0xFF && bytes[1]===0xD8 && bytes[2]===0xFF;
+      const png=bytes.length>=8 && bytes[0]===0x89 && bytes[1]===0x50 && bytes[2]===0x4E && bytes[3]===0x47;
+      const webp=bytes.length>=12 &&
+        bytes[0]===0x52 && bytes[1]===0x49 && bytes[2]===0x46 && bytes[3]===0x46 &&
+        bytes[8]===0x57 && bytes[9]===0x45 && bytes[10]===0x42 && bytes[11]===0x50;
+      return jpeg || png || webp;
+    }
+
+    async function repairCorruptRestoredPhotos(file){
+      const btn=document.getElementById('photoRepairBtn');
+      const progressBox=document.getElementById('backupProgressBox');
+      const progressText=document.getElementById('backupProgressText');
+      const progressBar=document.getElementById('backupProgressBar');
+
+      btn.disabled=true;
+      await acquireTravelWakeLock();
+
+      let db=null;
+      try{
+        // Validate backup header/manifest.
+        const head=new Uint8Array(await file.slice(0,16).arrayBuffer());
+        if(new TextDecoder().decode(head.slice(0,8))!==TL_BACKUP_MAGIC){
+          throw new Error('travel logのバックアップ形式ではありません');
+        }
+        const manifestLength=readU64le(new DataView(head.buffer),8);
+        if(!Number.isSafeInteger(manifestLength)||manifestLength<=0||manifestLength>50*1024*1024){
+          throw new Error('管理データが壊れています');
+        }
+
+        const binaryStart=16+manifestLength;
+        const manifest=JSON.parse(await file.slice(16,binaryStart).text());
+        if(manifest?.format!=='travel-log-binary-backup'||manifest?.version!==1){
+          throw new Error('対応していないバックアップ形式です');
+        }
+
+        const photos=manifest.photos||[];
+        if(!photos.length) throw new Error('バックアップに写真がありません');
+
+        if(!confirm(
+          `壊れた写真だけを修復します。\n\n`+
+          `バックアップ写真：${photos.length}枚\n`+
+          `正常な写真は変更しません。\n`+
+          `壊れている写真だけバックアップから上書きします。\n\n`+
+          `開始しますか？`
+        )) return;
+
+        progressBox.style.display='block';
+        progressBar.max=Math.max(1,photos.length);
+        progressBar.value=0;
+
+        db=await photoDbOpen();
+
+        let repaired=0;
+        let alreadyGood=0;
+        let missing=0;
+
+        for(let i=0;i<photos.length;i++){
+          const manifestMeta={...photos[i]};
+          progressText.textContent=`写真を確認・修復中 ${i+1} / ${photos.length}`;
+          progressBar.value=i;
+
+          // Read raw existing record without display conversion.
+          const existing=await new Promise((resolve,reject)=>{
+            const tx=db.transaction(PHOTO_STORE,'readonly');
+            const req=tx.objectStore(PHOTO_STORE).get(manifestMeta.id);
+            req.onsuccess=()=>resolve(req.result||null);
+            req.onerror=()=>reject(req.error||new Error('写真レコード読込エラー'));
+          });
+
+          if(existing && await storedRecordLooksLikeImage(existing)){
+            alreadyGood++;
+            progressBar.value=i+1;
+            if((i+1)%20===0) await new Promise(r=>setTimeout(r,50));
+            continue;
+          }
+
+          if(!existing) missing++;
+
+          const start=binaryStart+Number(manifestMeta.binaryOffset);
+          const end=start+Number(manifestMeta.binaryLength);
+          if(start<binaryStart || end>file.size || end<start){
+            throw new Error(`バックアップ写真 ${i+1} の位置情報が不正です`);
+          }
+
+          const mimeType=manifestMeta.binaryType||'image/jpeg';
+          const buffer=await file.slice(start,end).arrayBuffer();
+
+          // Verify source bytes before writing.
+          const sourceBytes=new Uint8Array(buffer,0,Math.min(buffer.byteLength,16));
+          const sourceType=detectStoredImageType(sourceBytes,mimeType);
+          const sourceValid=
+            (sourceType==='image/jpeg' && sourceBytes.length>=3 && sourceBytes[0]===0xFF && sourceBytes[1]===0xD8 && sourceBytes[2]===0xFF) ||
+            (sourceType==='image/png' && sourceBytes.length>=4 && sourceBytes[0]===0x89 && sourceBytes[1]===0x50 && sourceBytes[2]===0x4E && sourceBytes[3]===0x47) ||
+            (sourceType==='image/webp' && sourceBytes.length>=12 && sourceBytes[0]===0x52 && sourceBytes[1]===0x49 && sourceBytes[2]===0x46 && sourceBytes[3]===0x46);
+
+          if(!sourceValid){
+            throw new Error(`バックアップ内の写真 ${i+1} が画像データではありません`);
+          }
+
+          delete manifestMeta.binaryOffset;
+          delete manifestMeta.binaryLength;
+          delete manifestMeta.binaryType;
+
+          await restorePutBinaryWithDb(db,manifestMeta,buffer,sourceType);
+          repaired++;
+          progressBar.value=i+1;
+
+          // Keep Safari stable during repair.
+          if((i+1)%20===0 && i+1<photos.length){
+            try{db.close();}catch(_){}
+            db=null;
+            await new Promise(r=>setTimeout(r,200));
+            db=await photoDbOpen();
+          }else if((i+1)%5===0){
+            await new Promise(r=>setTimeout(r,80));
+          }else{
+            await new Promise(r=>setTimeout(r,10));
+          }
+        }
+
+        try{db?.close();}catch(_){}
+        db=null;
+
+        // Clear stale object URLs, reload metadata.
+        for(const url of photoObjectUrlCache.values()){
+          try{URL.revokeObjectURL(url);}catch(_){}
+        }
+        photoObjectUrlCache.clear();
+        window.personalPhotos=await photoDbAll();
+        renderPhotoAlbum(false);
+
+        progressText.textContent=`修復完了：${repaired}枚修復・${alreadyGood}枚正常`;
+        alert(
+          `写真修復完了\n\n`+
+          `修復：${repaired}枚\n`+
+          `すでに正常：${alreadyGood}枚\n`+
+          `欠損していたレコード：${missing}枚\n\n`+
+          `写真タブを確認してください。`
+        );
+
+      }catch(error){
+        console.error('photo repair failed',error);
+        alert(`写真修復に失敗しました。\n${readableRestoreError(error)}`);
+      }finally{
+        try{db?.close();}catch(_){}
+        btn.disabled=false;
+        await releaseTravelWakeLock();
+      }
+    }
+
+    document.getElementById('photoRepairBtn')?.addEventListener('click',()=>{
+      // Reuse a temporary unrestricted picker so iOS Files can select .travelbackup.
+      const input=document.createElement('input');
+      input.type='file';
+      input.style.display='none';
+      input.addEventListener('change',async()=>{
+        const file=input.files?.[0];
+        if(file) await repairCorruptRestoredPhotos(file);
+        input.remove();
+      },{once:true});
+      document.body.appendChild(input);
+      input.click();
+    });
 
     async function diagnoseRestoredPhotos(){
       const btn=document.getElementById('photoDiagBtn');
