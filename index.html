@@ -1510,6 +1510,7 @@
           <p id="photoCountLabel">写真 0枚</p>
         </div>
         <div class="photo-head-actions">
+          <button type="button" class="photo-audit-btn" id="photoDiagBtn">復元写真を診断</button>
           <button type="button" class="photo-add-btn" id="photoAddBtn">＋ 写真を追加</button>
         </div>
         <input type="file" id="photoAddInput" accept="image/*" multiple hidden>
@@ -1625,7 +1626,7 @@
             <h2 id="myPageTitle">マイページ</h2>
             <p>travel log</p>
             <div class="mypage-update-info">
-              <div>アプリ更新：<span id="appUpdatedAt">2026/08/15 13:11</span></div>
+              <div>アプリ更新：<span id="appUpdatedAt">2026/08/15 13:15</span></div>
               <div>データ最終更新：<span id="dataUpdatedAt">—</span></div>
             </div>
           </div>
@@ -5276,6 +5277,91 @@ document.addEventListener('click', event => {
       renderPhotoAlbum();
       requestAnimationFrame(()=>window.scrollTo({top:0,behavior:'instant'}));
     }
+
+    async function diagnoseRestoredPhotos(){
+      const btn=document.getElementById('photoDiagBtn');
+      if(btn) btn.disabled=true;
+      try{
+        const db=await photoDbOpen();
+        const ids=await new Promise((resolve,reject)=>{
+          const tx=db.transaction(PHOTO_STORE,'readonly');
+          const req=tx.objectStore(PHOTO_STORE).getAllKeys();
+          req.onsuccess=()=>resolve(req.result||[]);
+          req.onerror=()=>reject(req.error);
+        });
+
+        let checked=0,blobRecords=0,binaryRecords=0;
+        let jpeg=0,png=0,webp=0,unknown=0,empty=0,totalBytes=0;
+        const samples=[];
+
+        for(let i=0;i<ids.length;i++){
+          const raw=await new Promise((resolve,reject)=>{
+            const tx=db.transaction(PHOTO_STORE,'readonly');
+            const req=tx.objectStore(PHOTO_STORE).get(ids[i]);
+            req.onsuccess=()=>resolve(req.result||null);
+            req.onerror=()=>reject(req.error);
+          });
+          if(!raw) continue;
+          checked++;
+
+          let bytes=null;
+          if(raw.blob instanceof Blob){
+            blobRecords++;
+            totalBytes+=raw.blob.size||0;
+            bytes=new Uint8Array(await raw.blob.slice(0,16).arrayBuffer());
+          }else if(raw.binaryData){
+            binaryRecords++;
+            const normalized=normalizeStoredPhotoBytes(raw.binaryData);
+            if(normalized){
+              totalBytes+=normalized.byteLength;
+              bytes=normalized.subarray(0,16);
+            }
+          }
+
+          if(!bytes || !bytes.length){
+            empty++;
+            if(samples.length<5) samples.push(`${i+1}: empty`);
+            continue;
+          }
+
+          let kind='unknown';
+          if(bytes.length>=3 && bytes[0]===0xFF && bytes[1]===0xD8 && bytes[2]===0xFF){jpeg++;kind='JPEG';}
+          else if(bytes.length>=8 && bytes[0]===0x89 && bytes[1]===0x50 && bytes[2]===0x4E && bytes[3]===0x47){png++;kind='PNG';}
+          else if(bytes.length>=12 && bytes[0]===0x52 && bytes[1]===0x49 && bytes[2]===0x46 && bytes[3]===0x46 && bytes[8]===0x57 && bytes[9]===0x45 && bytes[10]===0x42 && bytes[11]===0x50){webp++;kind='WEBP';}
+          else unknown++;
+
+          if(samples.length<5){
+            const hex=[...bytes.subarray(0,12)].map(b=>b.toString(16).padStart(2,'0')).join(' ');
+            samples.push(`${i+1}: ${kind} / ${hex}`);
+          }
+
+          if(i%20===19) await new Promise(r=>setTimeout(r,0));
+        }
+
+        const mb=(totalBytes/1024/1024).toFixed(1);
+        alert(
+          `復元写真診断\n\n`+
+          `レコード：${checked}枚\n`+
+          `Blob保存：${blobRecords}枚\n`+
+          `バイナリ保存：${binaryRecords}枚\n`+
+          `JPEG：${jpeg}枚\n`+
+          `PNG：${png}枚\n`+
+          `WebP：${webp}枚\n`+
+          `不明：${unknown}枚\n`+
+          `空データ：${empty}枚\n`+
+          `実データ合計：約 ${mb} MB\n\n`+
+          `先頭サンプル\n${samples.join('\n')}`
+        );
+      }catch(error){
+        console.error(error);
+        alert(`写真診断に失敗しました。\n${error?.message||String(error)}`);
+      }finally{
+        if(btn) btn.disabled=false;
+      }
+    }
+
+    document.getElementById('photoDiagBtn')?.addEventListener('click',diagnoseRestoredPhotos);
+
     document.getElementById('photoAddBtn')?.addEventListener('click',()=>document.getElementById('photoAddInput')?.click());
     document.getElementById('photoAddInput')?.addEventListener('change',e=>{
       if(e.target.files?.length) openPhotoAssignment([...e.target.files]);
