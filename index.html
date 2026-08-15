@@ -1632,7 +1632,7 @@
             <h2 id="myPageTitle">マイページ</h2>
             <p>travel log</p>
             <div class="mypage-update-info">
-              <div>アプリ更新：<span id="appUpdatedAt">2026/08/15 15:20</span></div>
+              <div>アプリ更新：<span id="appUpdatedAt">2026/08/15 15:30</span></div>
               <div>データ最終更新：<span id="dataUpdatedAt">—</span></div>
             </div>
           </div>
@@ -1818,7 +1818,6 @@
         <button type="button" class="manager-btn secondary" id="completeBackupVerify">バックアップを検証</button>
         <button type="button" class="manager-btn secondary" id="completeBackupImport">バックアップ復元</button>
         <button type="button" class="manager-btn secondary" id="storageDiagnosticBtn">容量を診断</button>
-        <button type="button" class="manager-btn secondary" id="storageCompactBtn">容量を再構築</button>
         <input id="completeBackupVerifyFile" type="file" hidden>
         <input id="completeBackupFile" type="file" hidden>
       </div>
@@ -3721,11 +3720,63 @@ function renderItinerary(day) {
       return new Blob([buffer],{type:type||'image/jpeg'});
     }
 
+
+    async function bulkReplacePhotoDatabase(rows){
+      const db=await photoDbOpen();
+      return await new Promise((resolve,reject)=>{
+        let settled=false;
+        const fail=(error)=>{
+          if(settled) return;
+          settled=true;
+          try{db.close();}catch(_){}
+          reject(error||new Error('写真DBの一括保存に失敗しました'));
+        };
+        try{
+          const tx=db.transaction([PHOTO_STORE,PHOTO_META_STORE],'readwrite');
+          const photos=tx.objectStore(PHOTO_STORE);
+          const meta=tx.objectStore(PHOTO_META_STORE);
+
+          // One transaction only: clear and write every photo without awaiting.
+          photos.clear();
+          meta.clear();
+          for(const row of rows){
+            photos.put(row);
+            meta.put(photoMetaFromRecord(row));
+          }
+
+          tx.oncomplete=()=>{
+            if(settled) return;
+            settled=true;
+            try{db.close();}catch(_){}
+            resolve();
+          };
+          tx.onerror=()=>fail(tx.error||new Error('写真DBの一括保存でエラーが発生しました'));
+          tx.onabort=()=>fail(tx.error||new Error('写真DBの一括保存が中断されました'));
+        }catch(error){
+          fail(error);
+        }
+      });
+    }
+
     async function importCompleteBackup(file){
-      let state=null;
-      let restoreDb=null;
       await acquireTravelWakeLock();
       try{
+        const box=document.getElementById('backupProgressBox');
+        const text=document.getElementById('backupProgressText');
+        const bar=document.getElementById('backupProgressBar');
+        box.style.display='block';
+
+        // This restore mode is intentionally only for a freshly-cleared origin.
+        // It prevents repeating the old hundreds-of-transactions pattern.
+        const before=await navigator.storage.estimate();
+        const beforeUsage=Number(before.usage||0);
+        if(beforeUsage>200*1024*1024){
+          throw new Error(
+            `Safari側に古いWebサイトデータがまだ残っています（推定 ${(beforeUsage/1024/1024).toFixed(1)} MB）。\n`+
+            `この版では追加書き込みを行いません。先に github.io のWebサイトデータを削除してから復元してください。`
+          );
+        }
+
         const head=new Uint8Array(await file.slice(0,16).arrayBuffer());
         if(new TextDecoder().decode(head.slice(0,8))!==TL_BACKUP_MAGIC){
           throw new Error('travel logのバックアップ形式ではありません');
@@ -3735,187 +3786,115 @@ function renderItinerary(day) {
         if(!Number.isSafeInteger(manifestLength)||manifestLength<=0||manifestLength>50*1024*1024){
           throw new Error('管理データが壊れています');
         }
-
         const binaryStart=16+manifestLength;
+        if(binaryStart>file.size) throw new Error('管理データの長さが不正です');
+
         const manifest=JSON.parse(await file.slice(16,binaryStart).text());
         if(manifest?.format!=='travel-log-binary-backup'||manifest?.version!==1){
           throw new Error('対応していないバックアップ形式です');
         }
 
-        const backupId=`${file.name}|${file.size}|${manifest.createdAt||''}|${manifest.photoCount||0}`;
-        const previous=loadRestoreState();
-        const total=manifest.photos?.length||0;
-        const canResume=previous?.backupId===backupId && previous.done>0 && previous.done<total;
+        const photos=manifest.photos||[];
+        const total=photos.length;
+        if(!total) throw new Error('バックアップに写真がありません');
 
-        if(canResume){
-          if(!confirm(
-            `途中から復元を再開できます。\n\n`+
-            `${previous.done} / ${previous.total} 復元済み\n`+
-            `次は ${previous.done+1} 枚目から再開します。\n\n`+
-            `復元を再開しますか？`
-          )) return;
-          state={...previous,error:''};
-        }else{
-          const currentPhotoCount=(await photoDbAll()).length;
+        if(!confirm(
+          `一括復元を開始します。\n\n`+
+          `バックアップ写真：${total}枚\n`+
+          `Safari用に1024px・JPEG 70%へ軽量化したあと、\n`+
+          `すべての写真を1回のDB書き込みで保存します。\n\n`+
+          `復元中はこの画面を閉じないでください。\n\n`+
+          `開始しますか？`
+        )) return;
 
-          let storageMessage='';
-          try{
-            if(navigator.storage?.estimate){
-              const est=await navigator.storage.estimate();
-              const quota=Number(est.quota||0);
-              const usage=Number(est.usage||0);
-              if(quota>0){
-                const free=Math.max(0,quota-usage);
-                storageMessage=`\n端末保存領域の推定空き：約 ${(free/1024/1024).toFixed(0)} MB`;
-              }
-            }
-          }catch(_){}
+        // Restore settings first. Do not carry over temporary DB/restore flags.
+        localStorage.clear();
+        Object.entries(manifest.localStorage||{}).forEach(([k,v])=>localStorage.setItem(k,v));
+        localStorage.removeItem(PHOTO_DB_ACTIVE_KEY);
+        localStorage.removeItem(RESTORE_STATE_KEY);
 
-          if(!confirm(
-            `最終確認\n\n`+
-            `現在の写真：${currentPhotoCount}枚\n`+
-            `バックアップの写真：${total}枚`+
-            storageMessage+
-            `\n\n現在の旅程・設定・写真をバックアップ内容に置き換えます。\n`+
-            `復元中はこの画面を閉じないでください。\n\n`+
-            `復元を開始しますか？`
-          )) return;
-
-          state={
-            backupId,
-            done:0,
-            total,
-            error:'',
-            startedAt:new Date().toISOString()
-          };
-          saveRestoreState(state);
-
-          const checkpoint=localStorage.getItem(RESTORE_STATE_KEY);
-          localStorage.clear();
-          Object.entries(manifest.localStorage||{}).forEach(([k,v])=>localStorage.setItem(k,v));
-          localStorage.setItem(RESTORE_STATE_KEY,checkpoint);
-
-          const db=await photoDbOpen();
-          await new Promise((resolve,reject)=>{
-            const tx=db.transaction([PHOTO_STORE,PHOTO_META_STORE],'readwrite');
-            tx.objectStore(PHOTO_STORE).clear();
-            tx.objectStore(PHOTO_META_STORE).clear();
-            tx.oncomplete=resolve;
-            tx.onabort=()=>reject(tx.error||new Error('写真DBの初期化が中断されました'));
-            tx.onerror=()=>reject(tx.error||new Error('写真DBの初期化に失敗しました'));
-          });
-          try{ db.close(); }catch(_){}
-        }
-
-        const box=document.getElementById('backupProgressBox');
-        const text=document.getElementById('backupProgressText');
-        const bar=document.getElementById('backupProgressBar');
-
-        box.style.display='block';
+        // Phase 1: decode/compress sequentially, but do not touch IndexedDB yet.
+        // Only the final lightweight images are retained in memory (~70–80 MB for this trip).
+        const rows=[];
+        let lightBytes=0;
         bar.max=Math.max(1,total);
-        bar.value=state.done;
-        showRestoreState(state);
+        bar.value=0;
 
-        restoreDb=await photoDbOpen();
-
-        for(let i=state.done;i<total;i++){
-          const meta={...manifest.photos[i]};
-          text.textContent=`復元中 ${i+1} / ${total}`;
-
-          const start=binaryStart+Number(meta.binaryOffset);
-          const end=start+Number(meta.binaryLength);
-          if(start<binaryStart || end>file.size || end<start){
+        for(let i=0;i<total;i++){
+          const meta={...photos[i]};
+          text.textContent=`写真を軽量化中 ${i+1} / ${total}`;
+          const off=Number(meta.binaryOffset), len=Number(meta.binaryLength);
+          if(!Number.isSafeInteger(off)||!Number.isSafeInteger(len)||off<0||len<=0){
+            throw new Error(`写真 ${i+1} の位置情報が不正です`);
+          }
+          const start=binaryStart+off, end=start+len;
+          if(start<binaryStart||end>file.size||end<start){
             throw new Error(`写真 ${i+1} のデータ位置が不正です`);
           }
 
-          // Safari/WebKit can fail when preparing Blob/File data for IndexedDB.
-          // Store one photo as ArrayBuffer instead; photoDbGet recreates a Blob on read.
           const mimeType=meta.binaryType||'image/jpeg';
-          const photoBuffer=await file.slice(start,end).arrayBuffer();
+          const sourceBuffer=await file.slice(start,end).arrayBuffer();
+          const light=await makeLightweightRestoreBuffer(sourceBuffer,mimeType);
 
           delete meta.binaryOffset;
           delete meta.binaryLength;
           delete meta.binaryType;
+          delete meta.blob;
+          delete meta.storage;
+          delete meta.opfsName;
+          delete meta.opfsType;
+          delete meta.opfsSize;
 
-          const lightSize=await restorePutBinaryWithDb(
-            restoreDb,
-            meta,
-            photoBuffer,
-            mimeType
-          );
-          state.lightBytes=(state.lightBytes||0)+Number(lightSize||0);
+          meta.binaryData=light.buffer; // ArrayBuffer: minimal structured-clone wrapper.
+          meta.binaryType=light.type||'image/jpeg';
+          rows.push(meta);
+          lightBytes+=Number(light.size||0);
+          bar.value=i+1;
 
-          // Record checkpoint only after the transaction completes.
-          state.done=i+1;
-          state.error='';
-          saveRestoreState(state);
-          bar.value=state.done;
-
-          // Periodically close/reopen the DB connection so Safari does not
-          // accumulate hundreds of live IndexedDB connections/resources.
-          if((i+1)%20===0 && i+1<total){
-            try{ restoreDb.close(); }catch(_){}
-            restoreDb=null;
-            await new Promise(r=>setTimeout(r,300));
-            restoreDb=await photoDbOpen();
-          }else if((i+1)%5===0){
-            await new Promise(r=>setTimeout(r,120));
-          }else{
-            await new Promise(r=>setTimeout(r,15));
-          }
+          // Yield only before the IndexedDB transaction exists.
+          if((i+1)%5===0) await new Promise(r=>setTimeout(r,0));
         }
 
-        try{ restoreDb?.close(); }catch(_){}
-        restoreDb=null;
+        // Phase 2: one IndexedDB transaction, no awaits while it is active.
+        text.textContent=`写真 ${total}枚を1回のDB書き込みで保存しています…`;
+        await bulkReplacePhotoDatabase(rows);
 
-        const restoredCount=(await photoDbAll()).length;
-        if(restoredCount!==total){
-          throw new Error(`写真の復元枚数が一致しません（${restoredCount}/${total}枚）`);
+        // Drop the in-memory photo payloads as soon as the transaction is committed.
+        rows.length=0;
+
+        // Verify logical content after closing the write connection.
+        const restored=await photoDbAll();
+        if(restored.length!==total){
+          throw new Error(`写真の復元枚数が一致しません（${restored.length}/${total}枚）`);
         }
         if(!Object.keys(manifest.localStorage||{}).length){
           throw new Error('旅程・設定データの復元を確認できません');
         }
 
-        state.done=total;
-        state.error='';
-        state.completedAt=new Date().toISOString();
-        saveRestoreState(state);
+        await new Promise(r=>setTimeout(r,1200));
+        const after=await navigator.storage.estimate();
+        const afterMb=(Number(after.usage||0)/1024/1024).toFixed(1);
+        const lightMb=(lightBytes/1024/1024).toFixed(1);
 
-        text.textContent=`復元完了：写真 ${restoredCount}/${total}枚・旅程データ復元済み`;
-
-        const lightMb=((state.lightBytes||0)/1024/1024).toFixed(1);
+        text.textContent=`復元完了：写真 ${restored.length}/${total}枚・Safari API 約 ${afterMb} MB`;
         alert(
           `復元成功\n`+
-          `写真：${restoredCount}/${total}枚 復元\n`+
+          `写真：${restored.length}/${total}枚\n`+
           `Safari用写真：約 ${lightMb} MB\n`+
+          `Safari API 推定使用量：約 ${afterMb} MB\n`+
           `旅程・設定データ：復元\n`+
           `完了`
         );
 
-        localStorage.removeItem(RESTORE_STATE_KEY);
         location.reload();
-
       }catch(error){
-        try{ restoreDb?.close(); }catch(_){}
-        restoreDb=null;
-
-        const message=readableRestoreError(error);
-        console.error('restore failed',error);
-
-        if(state){
-          state.error=message;
-          state.failedAt=new Date().toISOString();
-          saveRestoreState(state);
-        }
-
-        alert(
-          `復元が途中で停止しました。\n`+
-          `${state?.done||0} / ${state?.total||0} 復元済み\n\n`+
-          `${message}\n\n`+
-          `同じバックアップをもう一度選ぶと続きから再開できます。`
-        );
+        console.error('bulk restore failed',error);
+        const box=document.getElementById('backupProgressBox');
+        const text=document.getElementById('backupProgressText');
+        if(box) box.style.display='block';
+        if(text) text.textContent=`復元を開始しませんでした：${error?.message||String(error)}`;
+        alert(`復元を開始しませんでした。\n\n${error?.message||String(error)}`);
       }finally{
-        try{ restoreDb?.close(); }catch(_){}
         await releaseTravelWakeLock();
       }
     }
@@ -4050,67 +4029,6 @@ function renderItinerary(day) {
         tx.onabort=()=>{if(settled)return;settled=true;const e=tx.error||new Error('新しい写真DBへの書き込みが中断されました');try{db.close();}catch(_){}reject(e);};
       });
     }
-
-    async function compactPhotoDatabase(){
-      const btn=document.getElementById('storageCompactBtn');
-      const box=document.getElementById('storageDiagnosticBox');
-      if(localStorage.getItem(PHOTO_DB_ACTIVE_KEY)==='1'){
-        alert('写真DBはすでに再構築済みです。');
-        return;
-      }
-      if(!confirm('写真DBを新しく作り直して、Safari内部の膨らんだ領域を切り離します。\n\n保存済みバックアップは消しません。現在の写真だけをそのまま移します。\n実行しますか？')) return;
-      if(btn) btn.disabled=true;
-      try{
-        const before=await navigator.storage.estimate();
-        if(box){box.style.display='block';box.textContent='容量再構築：現在の写真を読み取っています…';}
-        const rows=await readAllPhotoRecordsFromDb(PHOTO_DB_LEGACY_NAME);
-        const sourceCount=rows.length;
-        const sourceBytes=rows.reduce((sum,row)=>sum+photoRecordBytes(row),0);
-        if(!sourceCount) throw new Error('移行する写真がありません');
-
-        // Remove any unfinished prior temp database first.
-        try{await deletePhotoDbNamed(PHOTO_DB_COMPACT_NAME);}catch(error){
-          if(!String(error?.message||'').includes('使用中')) throw error;
-          throw error;
-        }
-
-        if(box) box.textContent=`容量再構築：${sourceCount}枚（${formatDiagnosticMb(sourceBytes)}）を新しいDBへ1回のトランザクションで保存中…`;
-        await writeAllPhotoRecordsToDb(PHOTO_DB_COMPACT_NAME,rows);
-
-        if(box) box.textContent='容量再構築：新しいDBを検証しています…';
-        const verify=await readAllPhotoRecordsFromDb(PHOTO_DB_COMPACT_NAME);
-        const verifyBytes=verify.reduce((sum,row)=>sum+photoRecordBytes(row),0);
-        if(verify.length!==sourceCount || verifyBytes!==sourceBytes){
-          throw new Error(`検証不一致（${verify.length}/${sourceCount}枚、${formatDiagnosticMb(verifyBytes)}/${formatDiagnosticMb(sourceBytes)}）`);
-        }
-
-        // Only after exact verification, delete the bloated legacy DB.
-        if(box) box.textContent='容量再構築：検証OK。古いDBを削除しています…';
-        await deletePhotoDbNamed(PHOTO_DB_LEGACY_NAME);
-        localStorage.setItem(PHOTO_DB_ACTIVE_KEY,'1');
-
-        await new Promise(r=>setTimeout(r,1500));
-        const after=await navigator.storage.estimate();
-        const result=[
-          '容量再構築 完了',
-          `写真：${sourceCount}枚`,
-          `写真実データ：${formatDiagnosticMb(sourceBytes)}`,
-          `Safari API 使用量：${formatDiagnosticMb(before.usage||0)} → ${formatDiagnosticMb(after.usage||0)}`,
-          '',
-          'ページを再読み込みします。'
-        ].join('\n');
-        if(box) box.textContent=result;
-        alert(result);
-        location.reload();
-      }catch(error){
-        const msg=`容量再構築を中止しました。\n元の写真DBは削除していません。\n\n${error?.message||String(error)}`;
-        if(box){box.style.display='block';box.textContent=msg;}
-        alert(msg);
-      }finally{
-        if(btn) btn.disabled=false;
-      }
-    }
-    document.getElementById('storageCompactBtn')?.addEventListener('click',compactPhotoDatabase);
 
     document.getElementById('completeBackupImport').addEventListener('click',()=>document.getElementById('completeBackupFile').click());
     document.getElementById('completeBackupFile').addEventListener('change',async event=>{
@@ -4502,7 +4420,7 @@ function renderItinerary(day) {
     document.getElementById('exportDataBtn')?.addEventListener('click', () => {
       const payload = {
         app:'travel log',
-        version:'2.0.8',
+        version:'2.0.9',
         exportedAt:new Date().toISOString(),
         selectedDay:currentSelectedDay,
         favorites:[...favoriteFoods],
@@ -4860,14 +4778,12 @@ document.addEventListener('click', event => {
     });
 
 // Personal photo album. Images are stored in IndexedDB so the HTML itself does not grow with every photo.
-    const PHOTO_DB_LEGACY_NAME = 'GavinTravelPhotos';
-    const PHOTO_DB_COMPACT_NAME = 'GavinTravelPhotosCompactV23';
+    const PHOTO_DB_LEGACY_NAME = 'GavinTravelPhotosV24Bulk';
+    const PHOTO_DB_COMPACT_NAME = 'GavinTravelPhotosV24Bulk';
     const PHOTO_DB_ACTIVE_KEY = 'travelLogPhotoDbV23Active';
     const PHOTO_DB_VERSION = 3;
 
-    function currentPhotoDbName(){
-      return localStorage.getItem(PHOTO_DB_ACTIVE_KEY)==='1' ? PHOTO_DB_COMPACT_NAME : PHOTO_DB_LEGACY_NAME;
-    }
+    function currentPhotoDbName(){ return PHOTO_DB_LEGACY_NAME; }
     const PHOTO_STORE = 'photos';
     const PHOTO_META_STORE = 'photoMeta';
     window.personalPhotos = window.personalPhotos || [];
