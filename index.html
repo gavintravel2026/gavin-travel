@@ -1510,8 +1510,7 @@
           <p id="photoCountLabel">写真 0枚</p>
         </div>
         <div class="photo-head-actions">
-          <button type="button" class="photo-audit-btn" id="photoDiagBtn">復元写真を診断</button>
-          <button type="button" class="photo-audit-btn" id="photoRepairBtn">壊れた写真を修復</button>
+          <button type="button" class="photo-audit-btn" id="photoStorageCleanupBtn">容量を整理</button>
           <button type="button" class="photo-add-btn" id="photoAddBtn">＋ 写真を追加</button>
         </div>
         <input type="file" id="photoAddInput" accept="image/*" multiple hidden>
@@ -1627,7 +1626,7 @@
             <h2 id="myPageTitle">マイページ</h2>
             <p>travel log</p>
             <div class="mypage-update-info">
-              <div>アプリ更新：<span id="appUpdatedAt">2026/08/15 13:19</span></div>
+              <div>アプリ更新：<span id="appUpdatedAt">2026/08/15 13:37</span></div>
               <div>データ最終更新：<span id="dataUpdatedAt">—</span></div>
             </div>
           </div>
@@ -3551,35 +3550,20 @@ function renderItinerary(day) {
 
 
     async function restorePutBinaryWithDb(db,record,arrayBuffer,mimeType){
+      const blob=new Blob([arrayBuffer],{type:mimeType||'image/jpeg'});
+      const opfsInfo=await opfsWritePhoto(record.id,blob);
+      const stored={...record,...opfsInfo};
+      delete stored.blob;
+      delete stored.binaryData;
+      delete stored.binaryType;
+
       return await new Promise((resolve,reject)=>{
-        let settled=false;
-        const fail=(error)=>{
-          if(settled) return;
-          settled=true;
-          reject(error || new Error('IndexedDB書き込みエラー'));
-        };
-        try{
-          const stored={...record};
-          delete stored.blob;
-          stored.binaryData=new Uint8Array(arrayBuffer);
-          stored.binaryType=mimeType||'image/jpeg';
-
-          const tx=db.transaction([PHOTO_STORE,PHOTO_META_STORE],'readwrite');
-          const req1=tx.objectStore(PHOTO_STORE).put(stored);
-          const req2=tx.objectStore(PHOTO_META_STORE).put(photoMetaFromRecord(stored));
-
-          req1.onerror=()=>fail(req1.error || tx.error);
-          req2.onerror=()=>fail(req2.error || tx.error);
-          tx.onabort=()=>fail(tx.error || new Error('IndexedDBトランザクションが中断されました'));
-          tx.onerror=()=>fail(tx.error || new Error('IndexedDBトランザクションエラー'));
-          tx.oncomplete=()=>{
-            if(settled) return;
-            settled=true;
-            resolve();
-          };
-        }catch(error){
-          fail(error);
-        }
+        const tx=db.transaction([PHOTO_STORE,PHOTO_META_STORE],'readwrite');
+        tx.objectStore(PHOTO_STORE).put(stored);
+        tx.objectStore(PHOTO_META_STORE).put(photoMetaFromRecord(stored));
+        tx.oncomplete=resolve;
+        tx.onabort=()=>reject(tx.error||new Error('写真メタデータ保存が中断されました'));
+        tx.onerror=()=>reject(tx.error||new Error('写真メタデータ保存に失敗しました'));
       });
     }
 
@@ -3703,6 +3687,7 @@ function renderItinerary(day) {
           Object.entries(manifest.localStorage||{}).forEach(([k,v])=>localStorage.setItem(k,v));
           localStorage.setItem(RESTORE_STATE_KEY,checkpoint);
 
+          await opfsClearPhotos();
           const db=await photoDbOpen();
           await new Promise((resolve,reject)=>{
             const tx=db.transaction([PHOTO_STORE,PHOTO_META_STORE],'readwrite');
@@ -4601,7 +4586,11 @@ document.addEventListener('click', event => {
         captureTimeSource:record.captureTimeSource || '',
         gpsLat:Number.isFinite(record.gpsLat) ? record.gpsLat : null,
         gpsLon:Number.isFinite(record.gpsLon) ? record.gpsLon : null,
-        exifScanned:record.exifScanned === true
+        exifScanned:record.exifScanned === true,
+        storage:record.storage || '',
+        opfsName:record.opfsName || '',
+        opfsType:record.opfsType || '',
+        opfsSize:Number.isFinite(record.opfsSize) ? record.opfsSize : 0
       };
     }
 
@@ -4703,43 +4692,135 @@ document.addEventListener('click', event => {
       return new Blob([safeBytes],{type});
     }
 
-    async function photoDbGet(id){
+
+    const PHOTO_OPFS_DIR='travel-log-photos-v1';
+
+    async function opfsPhotoDirectory(create=true){
+      if(!navigator.storage?.getDirectory){
+        throw new Error('このSafariでは新しい写真保存方式を利用できません');
+      }
+      const root=await navigator.storage.getDirectory();
+      return await root.getDirectoryHandle(PHOTO_OPFS_DIR,{create});
+    }
+
+    function opfsPhotoName(id){
+      return `${String(id).replace(/[^a-zA-Z0-9._-]/g,'_')}.photo`;
+    }
+
+    async function opfsWritePhoto(id,blob){
+      if(!(blob instanceof Blob) || blob.size<=0){
+        throw new Error('写真データが空です');
+      }
+      const dir=await opfsPhotoDirectory(true);
+      const name=opfsPhotoName(id);
+      const handle=await dir.getFileHandle(name,{create:true});
+      if(typeof handle.createWritable!=='function'){
+        throw new Error('このSafariでは写真ファイルへの書き込みに対応していません');
+      }
+      const writable=await handle.createWritable();
+      try{
+        await writable.write(blob);
+      }finally{
+        await writable.close();
+      }
+      const file=await handle.getFile();
+      if(file.size!==blob.size){
+        try{await dir.removeEntry(name);}catch(_){}
+        throw new Error(`写真ファイルのサイズ確認に失敗しました（${file.size}/${blob.size} bytes）`);
+      }
+      return {
+        storage:'opfs',
+        opfsName:name,
+        opfsType:blob.type||'image/jpeg',
+        opfsSize:file.size
+      };
+    }
+
+    async function opfsReadPhoto(record){
+      if(!record?.opfsName) return null;
+      const dir=await opfsPhotoDirectory(false);
+      const handle=await dir.getFileHandle(record.opfsName,{create:false});
+      const file=await handle.getFile();
+      if(record.opfsSize && file.size!==record.opfsSize){
+        throw new Error('保存写真のサイズが一致しません');
+      }
+      return file;
+    }
+
+    async function opfsDeletePhoto(recordOrName){
+      const name=typeof recordOrName==='string' ? recordOrName : recordOrName?.opfsName;
+      if(!name) return;
+      try{
+        const dir=await opfsPhotoDirectory(false);
+        await dir.removeEntry(name);
+      }catch(error){
+        if(error?.name!=='NotFoundError') console.warn('OPFS写真削除',error);
+      }
+    }
+
+    async function opfsClearPhotos(){
+      try{
+        const root=await navigator.storage.getDirectory();
+        await root.removeEntry(PHOTO_OPFS_DIR,{recursive:true});
+      }catch(error){
+        if(error?.name!=='NotFoundError') throw error;
+      }
+    }
+
+    async function rawPhotoDbGet(id){
       const db=await photoDbOpen();
       return await new Promise((resolve,reject)=>{
         const tx=db.transaction(PHOTO_STORE,'readonly');
         const req=tx.objectStore(PHOTO_STORE).get(id);
-        req.onsuccess=()=>{
-          const record=req.result||null;
-          if(record){
-            try{
-              const displayBlob=blobFromStoredPhotoRecord(record);
-              if(displayBlob) record.blob=displayBlob;
-            }catch(error){
-              reject(error);
-              return;
-            }
-          }
-          resolve(record);
-        };
+        req.onsuccess=()=>resolve(req.result||null);
         req.onerror=()=>reject(req.error||new Error('写真データの読み込みに失敗しました'));
       });
     }
 
-    async function photoDbPut(record){
+    async function putPhotoMetadataOnly(record){
       const db=await photoDbOpen();
+      const stored={...record};
+      delete stored.blob;
+      delete stored.binaryData;
+      delete stored.binaryType;
       return await new Promise((resolve,reject)=>{
         const tx=db.transaction([PHOTO_STORE,PHOTO_META_STORE],'readwrite');
-        const stored={...record};
-        // A normal photo save uses Blob; remove stale binary restore fields.
-        if(stored.blob){
-          delete stored.binaryData;
-          delete stored.binaryType;
-        }
         tx.objectStore(PHOTO_STORE).put(stored);
         tx.objectStore(PHOTO_META_STORE).put(photoMetaFromRecord(stored));
         tx.oncomplete=resolve;
-        tx.onerror=()=>reject(tx.error);
+        tx.onabort=()=>reject(tx.error||new Error('写真メタデータ保存が中断されました'));
+        tx.onerror=()=>reject(tx.error||new Error('写真メタデータ保存に失敗しました'));
       });
+    }
+
+    async function photoDbGet(id){
+      const record=await rawPhotoDbGet(id);
+      if(!record) return null;
+
+      if(record.storage==='opfs' && record.opfsName){
+        const file=await opfsReadPhoto(record);
+        if(file) record.blob=file;
+        return record;
+      }
+
+      const displayBlob=blobFromStoredPhotoRecord(record);
+      if(displayBlob) record.blob=displayBlob;
+      return record;
+    }
+
+    async function photoDbPut(record){
+      const stored={...record};
+
+      // New/updated photos are stored as files in OPFS; IndexedDB keeps metadata only.
+      if(stored.blob instanceof Blob && stored.blob.size>0){
+        const opfsInfo=await opfsWritePhoto(stored.id,stored.blob);
+        Object.assign(stored,opfsInfo);
+        delete stored.blob;
+        delete stored.binaryData;
+        delete stored.binaryType;
+      }
+
+      return await putPhotoMetadataOnly(stored);
     }
 
     async function photoDbUpdateExif(id,exif){
@@ -4766,6 +4847,9 @@ document.addEventListener('click', event => {
     }
 
     async function photoDbDelete(id){
+      const existing=await rawPhotoDbGet(id);
+      if(existing?.storage==='opfs') await opfsDeletePhoto(existing);
+
       const db=await photoDbOpen();
       return await new Promise((resolve,reject)=>{
         const tx=db.transaction([PHOTO_STORE,PHOTO_META_STORE],'readwrite');
@@ -5279,6 +5363,164 @@ document.addEventListener('click', event => {
       requestAnimationFrame(()=>window.scrollTo({top:0,behavior:'instant'}));
     }
 
+
+
+    async function migratePhotosToOpfs(){
+      const btn=document.getElementById('photoStorageCleanupBtn');
+      const box=document.getElementById('backupProgressBox');
+      const text=document.getElementById('backupProgressText');
+      const bar=document.getElementById('backupProgressBar');
+
+      btn.disabled=true;
+      await acquireTravelWakeLock();
+
+      try{
+        // Feature test before changing any photo.
+        const testDir=await opfsPhotoDirectory(true);
+        const testHandle=await testDir.getFileHandle('__travel_log_test__',{create:true});
+        if(typeof testHandle.createWritable!=='function'){
+          throw new Error('このSafariでは新しい写真保存方式を利用できません');
+        }
+        const testWritable=await testHandle.createWritable();
+        await testWritable.write(new Blob(['ok'],{type:'text/plain'}));
+        await testWritable.close();
+        await testDir.removeEntry('__travel_log_test__');
+
+        const db=await photoDbOpen();
+        const ids=await new Promise((resolve,reject)=>{
+          const tx=db.transaction(PHOTO_STORE,'readonly');
+          const req=tx.objectStore(PHOTO_STORE).getAllKeys();
+          req.onsuccess=()=>resolve(req.result||[]);
+          req.onerror=()=>reject(req.error);
+        });
+        try{db.close();}catch(_){}
+
+        let already=0;
+        for(const id of ids){
+          const r=await rawPhotoDbGet(id);
+          if(r?.storage==='opfs' && r?.opfsName) already++;
+        }
+
+        if(already===ids.length && ids.length){
+          alert(`容量整理は完了済みです。\n写真 ${ids.length}枚`);
+          btn.style.display='none';
+          return;
+        }
+
+        if(!confirm(
+          `写真の保存方法を整理してSafariの使用量を減らします。\n\n`+
+          `写真：${ids.length}枚\n`+
+          `写真は1枚ずつ移し、移動確認後に古い保存分を削除します。\n`+
+          `写真・旅程との紐付け・撮影時刻・GPSは変わりません。\n\n`+
+          `開始しますか？`
+        )) return;
+
+        box.style.display='block';
+        bar.max=Math.max(1,ids.length);
+        bar.value=already;
+
+        let migrated=0;
+        let skipped=0;
+        let bytesMoved=0;
+
+        for(let i=0;i<ids.length;i++){
+          text.textContent=`容量を整理中 ${i+1} / ${ids.length}`;
+          const raw=await rawPhotoDbGet(ids[i]);
+          if(!raw){
+            skipped++;
+            bar.value=i+1;
+            continue;
+          }
+
+          if(raw.storage==='opfs' && raw.opfsName){
+            // Verify existing migrated file.
+            const f=await opfsReadPhoto(raw);
+            if(f?.size>0){
+              skipped++;
+              bar.value=i+1;
+              continue;
+            }
+          }
+
+          const blob=blobFromStoredPhotoRecord(raw);
+          if(!(blob instanceof Blob) || blob.size<=0){
+            throw new Error(`写真 ${i+1} の元データを読み込めません`);
+          }
+
+          // 1) Write and verify the new file.
+          const info=await opfsWritePhoto(raw.id,blob);
+
+          // 2) Only after verification, replace the IndexedDB record with metadata only.
+          const cleaned={...raw,...info};
+          delete cleaned.blob;
+          delete cleaned.binaryData;
+          delete cleaned.binaryType;
+          await putPhotoMetadataOnly(cleaned);
+
+          migrated++;
+          bytesMoved+=blob.size;
+          bar.value=i+1;
+
+          // Give Safari time to release old IndexedDB pages.
+          if((i+1)%10===0) await new Promise(r=>setTimeout(r,180));
+          else await new Promise(r=>setTimeout(r,20));
+        }
+
+        for(const url of photoObjectUrlCache.values()){
+          try{URL.revokeObjectURL(url);}catch(_){}
+        }
+        photoObjectUrlCache.clear();
+        window.personalPhotos=await photoDbAll();
+        renderPhotoAlbum(false);
+        markDataUpdated();
+
+        // Verify every photo can now be opened from OPFS.
+        let verified=0;
+        for(const id of ids){
+          const r=await rawPhotoDbGet(id);
+          if(r?.storage!=='opfs' || !r.opfsName) continue;
+          const file=await opfsReadPhoto(r);
+          if(file?.size>0) verified++;
+          if(verified%25===0) await new Promise(r=>setTimeout(r,0));
+        }
+
+        text.textContent=`容量整理完了：${verified}/${ids.length}枚`;
+        btn.style.display='none';
+
+        alert(
+          `容量整理が完了しました。\n\n`+
+          `写真：${verified}/${ids.length}枚 確認済み\n`+
+          `今回移動：${migrated}枚\n`+
+          `写真の表示・紐付けは維持されています。\n\n`+
+          `SafariのWebサイトデータ容量は、少し時間を置いてから確認してください。`
+        );
+
+      }catch(error){
+        console.error('photo storage migration failed',error);
+        alert(
+          `容量整理が途中で停止しました。\n\n`+
+          `${error?.message||String(error)}\n\n`+
+          `完了済みの写真はそのままです。もう一度押すと残りから続けられます。`
+        );
+      }finally{
+        btn.disabled=false;
+        await releaseTravelWakeLock();
+      }
+    }
+
+    document.getElementById('photoStorageCleanupBtn')?.addEventListener('click',migratePhotosToOpfs);
+
+    async function refreshPhotoStorageCleanupButton(){
+      const btn=document.getElementById('photoStorageCleanupBtn');
+      if(!btn) return;
+      try{
+        const metas=await photoDbAll();
+        if(metas.length && metas.every(p=>p.storage==='opfs' && p.opfsName)){
+          btn.style.display='none';
+        }
+      }catch(_){}
+    }
+    setTimeout(refreshPhotoStorageCleanupButton,100);
 
     async function storedRecordLooksLikeImage(record){
       if(!record) return false;
